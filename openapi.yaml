@@ -1,0 +1,2516 @@
+openapi: 3.1.0
+
+info:
+  title: TamaDB API
+  version: 0.5.0
+  summary: Document-centric transmission cache — REST API reference.
+  description: |
+    **TamaDB** is a document-centric *transmission cache* for
+    smart-endpoints / dumb-pipes architectures: a JSON document-oriented cache
+    engine that validates, versions, and delivers producer data to consumers.
+    This is the complete REST API reference for **Increment 1**.
+
+    This document is the **single source of truth** for the TamaDB HTTP surface.
+    It is linted in CI (`redocly lint`) and rendered to the published API
+    Reference by Redoc, so the docs cannot silently drift from the contract.
+
+    ## Conventions
+
+    - All endpoints exchange `application/json`, **except** the ingestion
+      endpoints, whose request body is the **bare JSON document** (see
+      *Ingestion*).
+    - Every endpoint lives under the `/api/v1` prefix **except** `GET /health`.
+    - There is **no authentication** in Increment 1.
+    - Path parameters are shown as `{paramName}`.
+
+    ## Upsert semantics
+
+    TamaDB documents are **upserted** — there is no separate create vs update.
+    The first ingest of a given identity creates the document (HTTP `201`); a
+    subsequent ingest of the same identity **merges** into it (HTTP `200`),
+    preserving absent leaves and incrementing the version number.
+
+    ## Document identity and identityKind
+
+    A document's identity (**D-Id**) is derived from one or more payload fields
+    annotated with the `identityKind` keyword in the schema. Identity is scoped
+    to `(Document_Type, D-Id)`.
+
+    `identityKind` is a **custom (vendor) JSON Schema keyword** that TamaDB reads
+    from registered schemas to extract the D-Id. It is attached to **scalar
+    leaf** properties and takes one of two values:
+
+    - `primary-key` — a field that contributes to the document's own identity.
+    - `parent-key` — a field that contributes a parent/ancestor identity segment.
+
+    It may be annotated at **any object-nesting depth** (universal nested-path
+    identity, since 0.2.0); the field is addressed by its root-to-leaf
+    *Identity_Path*. Arrays are never traversed (atomic in Increment 1) and the
+    annotated value must be a scalar. The keyword is **ignored by schema
+    validation** (Ajv runs with `strict: false`) and consumed only by the D-Id
+    Extractor. It is therefore a property of the *posted schema*, not a
+    request/response field. See the *Schemas* tag for how to register a schema
+    carrying `identityKind`.
+
+    A **composed** (multi-field) D-Id is expressed in a URL by joining its parts
+    with the `:` delimiter. **Each part is percent-encoded** (via
+    `encodeURIComponent`, and `:` is additionally encoded as `%3A`) so that a
+    part value may itself contain the delimiter, `/`, or other reserved
+    characters without corrupting the part boundaries. In response bodies, a
+    single-key `dId` is a string and a composed `dId` is an array of strings.
+
+    ## TTL & expiry (sliding window)
+
+    A cached document's TTL is a **sliding window anchored to its last update**
+    (`lastUpdateTime + effectiveTTL`), re-armed on **every store** (create or
+    merge) — since 0.4.0. Reads and value-search listings **never** re-arm the
+    window. A continuously-updated document therefore persists indefinitely by
+    design (the producer owns the cache lifetime). A store targeting an
+    expired-but-salvageable document **revives** it.
+
+    The TTL hierarchy is **Document > Document_Type > Instance** (most specific
+    wins). `TamaDB-Expire-At` is an absolute, non-sliding, non-salvageable
+    deadline that overrides TTL.
+
+    ## Document metadata and timestamps
+
+    Every store appends a timestamp entry to the stored document carrying a
+    **Request_Timestamp** (`t1`, request receipt — the versioning / history /
+    TTL-anchor time) and a **Commit_Timestamp** (`t1+m`, write-completion time).
+    As of 0.4.1 the `Commit_Timestamp` is **populated** on every stored entry
+    (it was previously always empty).
+
+    These timestamps are **document metadata**, not part of the default
+    retrieval response: `GET /api/v1/documents/{documentType}/{dId}` returns the
+    stored document's own fields (the producer payload plus any enrichment), and
+    the `mode` / `path` options only select which *data* fields are returned —
+    they never emit the metadata. The `Commit_Timestamp` is delivered on the
+    **metadata-delivery (webhook) payload**, which the subscription → webhook
+    pipeline carries; that payload is modelled when the delivery pipeline ships.
+
+    ## Error responses
+
+    All errors share a consistent shape (`code` + `message`, with optional
+    `reason`, `context`, `quarantineRef`, `warning`). See the `Error` schema and
+    the error-code → HTTP-status table in `httpStatusForCode`.
+  contact:
+    name: Teneris
+  license:
+    name: Apache-2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+
+servers:
+  - url: http://localhost:3000
+    description: Local Increment 1 instance
+
+tags:
+  - name: Health
+    description: Liveness / readiness probe, build info, and service-discovery metadata.
+  - name: Admin
+    description: Operational admin endpoints (e.g. graceful shutdown).
+  - name: Ingestion
+    description: >
+      Document ingestion. The request body is the **bare JSON document**;
+      per-request instructions travel as reserved `TamaDB-*` Control_Headers.
+  - name: Documents
+    description: Retrieve, delete, value-search, and set per-document TTL.
+  - name: Schemas
+    description: JSON Schema repository — register, retrieve, version, lifecycle.
+  - name: Document_Types
+    description: Document_Type registry and effective Document_Type TTL.
+  - name: Channels
+    description: Ingestion channels and their enrichment bindings.
+  - name: Subscriptions
+    description: Webhook subscriptions by Document_Type or document identity.
+  - name: Quarantine
+    description: Inspect quarantined (rejected) ingestion payloads.
+  - name: Configuration
+    description: Instance-level configuration (TTL, storage, logging, policies).
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      operationId: getHealth
+      summary: Liveness / readiness probe
+      description: >
+        Returns `ok` plus build info (version, commit) and the active storage
+        mode and log level. This is the only endpoint **not** under `/api/v1`.
+      responses:
+        '200':
+          description: The instance is up.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+              example:
+                status: ok
+                version: 0.5.1
+                commit: 5e1efe539201
+                storageMode: auto
+                logLevel: debug
+
+  /api/v1/info:
+    get:
+      tags: [Health]
+      operationId: getServiceInfo
+      summary: Service information (discovery / metadata)
+      description: >
+        Service-discovery metadata — stable identity, version/build fingerprint,
+        environment, operational status, and where to find the docs — for humans
+        and client tooling. Distinct from `/health`, which is the lightweight
+        liveness/readiness probe. All values are resolved at runtime (from
+        package.json / build-info) or from configuration (`TAMADB_ENV`,
+        `TAMADB_DOCS_URL`, `TAMADB_OPENAPI_URL`), so a self-hosted instance can
+        report its own environment and doc locations.
+      responses:
+        '200':
+          description: Service information.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceInfo'
+              example:
+                name: tamadb
+                description: >-
+                  TamaDB — a document-centric transmission cache for
+                  smart-endpoints/dumb-pipes architectures; a JSON
+                  document-oriented cache engine for producer/consumer data
+                  exchange (Increment 1).
+                version: 0.5.1
+                commit: 5e1efe539201
+                apiVersion: v1
+                environment: increment-1
+                status: operational
+                documentation: https://tamadb.cc/api-reference.html
+                openapi: https://tamadb.cc/openapi.yaml
+                startedAt: '2026-10-17T12:49:37.086Z'
+
+  /api/v1/admin/shutdown:
+    post:
+      tags: [Admin]
+      operationId: shutdown
+      summary: Trigger a graceful shutdown
+      description: >
+        Responds `200` immediately, then (asynchronously) drains in-memory
+        documents to disk, persists all component state, closes the HTTP server,
+        and exits the process. The recommended cross-platform way to stop TamaDB
+        (SIGTERM can be unreliable on some platforms). After the response, the
+        server stops accepting new requests.
+      responses:
+        '200':
+          description: Shutdown accepted; the process will exit shortly.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    const: shutting-down
+                required: [status]
+              example:
+                status: shutting-down
+
+  /api/v1/ingest/{documentType}:
+    post:
+      tags: [Ingestion]
+      operationId: ingestDocument
+      summary: Ingest a document (default channel)
+      description: |
+        Ingest a document for `{documentType}` via the default channel. The
+        **request body is the bare JSON document** (a JSON object), not a
+        wrapper. Per-request instructions are supplied as reserved `TamaDB-*`
+        Control_Headers (see parameters).
+
+        Returns `201` when the document is created and `200` when an existing
+        document is merged (upsert). On a payload-level rejection the response
+        carries an `Error` with an optional `quarantineRef`.
+
+        Each successful store records a timestamp entry on the stored document
+        with a populated **Commit_Timestamp** (write-completion time; see
+        *Document metadata and timestamps*). This metadata is not returned in
+        the ingest response — the response body is the `IngestResult` below.
+      parameters:
+        - $ref: '#/components/parameters/DocumentTypePath'
+        - $ref: '#/components/parameters/TamaDBVersion'
+        - $ref: '#/components/parameters/TamaDBTtl'
+        - $ref: '#/components/parameters/TamaDBExpireAt'
+        - $ref: '#/components/parameters/TamaDBSchema'
+      requestBody:
+        $ref: '#/components/requestBodies/BareDocument'
+      responses:
+        '201':
+          $ref: '#/components/responses/IngestCreated'
+        '200':
+          $ref: '#/components/responses/IngestMerged'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+
+  /api/v1/ingest/{documentType}/{channelId}:
+    post:
+      tags: [Ingestion]
+      operationId: ingestDocumentViaChannel
+      summary: Ingest a document via a named channel
+      description: >
+        As `POST /api/v1/ingest/{documentType}`, but routes through the named
+        `{channelId}` so channel enrichment and the channel schema apply.
+      parameters:
+        - $ref: '#/components/parameters/DocumentTypePath'
+        - $ref: '#/components/parameters/ChannelIdPath'
+        - $ref: '#/components/parameters/TamaDBVersion'
+        - $ref: '#/components/parameters/TamaDBTtl'
+        - $ref: '#/components/parameters/TamaDBExpireAt'
+        - $ref: '#/components/parameters/TamaDBSchema'
+      requestBody:
+        $ref: '#/components/requestBodies/BareDocument'
+      responses:
+        '201':
+          $ref: '#/components/responses/IngestCreated'
+        '200':
+          $ref: '#/components/responses/IngestMerged'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+
+  /api/v1/documents/{documentType}/{dId}:
+    get:
+      tags: [Documents]
+      operationId: retrieveDocument
+      summary: Retrieve a document (or glob-match)
+      description: |
+        Retrieve a single document by `{documentType}` and `{dId}`.
+
+        If `{dId}` contains glob characters (`*` or `?`), the endpoint switches
+        to **glob retrieval** and returns a `{ matches, count }` collection
+        instead of a single document.
+
+        A TTL-expired but *salvageable* document is served **in place** as a
+        Best-Effort Read (visibility only — the read does not re-arm the TTL,
+        restore the document, or clear its soft-delete state).
+      parameters:
+        - $ref: '#/components/parameters/DocumentTypePath'
+        - $ref: '#/components/parameters/DIdPath'
+        - name: path
+          in: query
+          required: false
+          description: Field/sub-path projection (dotted path into the document).
+          schema:
+            type: string
+        - name: mode
+          in: query
+          required: false
+          description: |
+            Projection model controlling which fields the returned document
+            carries (default `full`):
+            - `closed` — only fields defined in the applicable schema.
+            - `open` — schema fields plus any extension fields present.
+            - `full` — the entire stored document, unfiltered.
+          schema:
+            type: string
+            enum: [closed, open, full]
+            default: full
+      responses:
+        '200':
+          description: The document, or a glob match collection.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                description: >
+                  One of three shapes depending on the request: a single
+                  **Document** (default), a **DocumentMatches** collection
+                  (`{ matches, count }` — when the D-Id is a glob), or a
+                  `{ "_value": ... }` projection (when `?path=` is given). See
+                  the examples.
+              examples:
+                single:
+                  summary: Single document by D-Id
+                  value:
+                    sensorId: GARAGE-TEMP-01
+                    location: Garage
+                    temperature: 19.1
+                    timestamp: '2026-07-17T10:10:00Z'
+                composed:
+                  summary: Composed D-Id (retrieved via ORD-1001:L-1)
+                  value:
+                    orderId: ORD-1001
+                    lineId: L-1
+                    sku: WIDGET-A
+                    qty: 3
+                glob:
+                  summary: Glob match collection (D-Id contains * or ?)
+                  value:
+                    matches:
+                      - sensorId: LIVING-ROOM-01
+                        location: Living Room
+                        temperature: 21.5
+                        timestamp: '2026-07-17T10:05:00Z'
+                      - sensorId: GARAGE-TEMP-01
+                        location: Garage
+                        temperature: 19.1
+                        timestamp: '2026-07-17T10:10:00Z'
+                    count: 2
+                projection:
+                  summary: Field projection (?path=temperature)
+                  value:
+                    _value: 19.1
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Documents]
+      operationId: deleteDocument
+      summary: Explicitly soft-delete a document
+      description: >
+        Soft-deletes the document with reason `explicit`. An explicit delete is
+        permanent (non-salvageable) and is not revived by a later store.
+      parameters:
+        - $ref: '#/components/parameters/DocumentTypePath'
+        - $ref: '#/components/parameters/DIdPath'
+      responses:
+        '200':
+          description: Deleted.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted:
+                    const: true
+                required: [deleted]
+              example:
+                deleted: true
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/documents/{documentType}/search:
+    post:
+      tags: [Documents]
+      operationId: searchDocumentsByValue
+      summary: Value-based search within a Document_Type
+      description: |
+        Returns all documents of `{documentType}` whose `field` equals `value`.
+
+        `includeExpired` controls whether TTL-driven salvageable soft-deletes
+        are surfaced. **It defaults to `true`** when omitted. Search is
+        visibility-only: it never alters the TTL clock or persists a state
+        change. A document listed by search is **not** guaranteed retrievable by
+        a later point lookup (Req 15.9).
+      parameters:
+        - $ref: '#/components/parameters/DocumentTypePath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                field:
+                  type: string
+                  description: The field name (or path) to match on.
+                value:
+                  description: The value to match (any JSON type).
+                includeExpired:
+                  type: boolean
+                  default: true
+                  description: |
+                    Whether TTL-driven, salvageable soft-deleted documents are
+                    surfaced in the results (visibility only — never alters the
+                    TTL clock or persists a state change):
+                    - `true` (default) — include salvageable TTL-expired
+                      documents, consistent with point-lookup Best-Effort Read.
+                    - `false` — return only live (non-expired) documents.
+
+                    Non-salvageable soft-deletes (`explicit`, `system_override`,
+                    `absolute_expired`, and TTL = 0) are never surfaced either way.
+              required: [field, value]
+            example:
+              field: location
+              value: Garage
+      responses:
+        '200':
+          description: Matching documents.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentMatches'
+              example:
+                matches:
+                  - sensorId: GARAGE-TEMP-01
+                    location: Garage
+                    temperature: 19.1
+                    timestamp: '2026-07-17T10:10:00Z'
+                count: 1
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/documents/{documentType}/{dId}/ttl:
+    put:
+      tags: [Documents]
+      operationId: setDocumentTtl
+      summary: Set a per-document (most-specific) TTL
+      description: >
+        Sets the document-level TTL — the most specific rung of the TTL
+        hierarchy (Document > Document_Type > Instance). A TTL below the
+        configured floor is raised to the floor and reported via `warning`.
+      parameters:
+        - $ref: '#/components/parameters/DocumentTypePath'
+        - $ref: '#/components/parameters/DIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ttl:
+                  $ref: '#/components/schemas/Ttl'
+              required: [ttl]
+            example:
+              ttl: 7200
+      responses:
+        '200':
+          description: TTL set.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  documentType:
+                    type: string
+                  dId:
+                    type: string
+                  ttl:
+                    $ref: '#/components/schemas/Ttl'
+                  warning:
+                    $ref: '#/components/schemas/TtlWarning'
+                required: [documentType, dId, ttl]
+              example:
+                documentType: temperature-readings
+                dId: GARAGE-TEMP-01
+                ttl: 7200
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/schemas:
+    post:
+      tags: [Schemas]
+      operationId: registerSchema
+      summary: Register a schema
+      description: |
+        Register a JSON Schema under a unique `ref`. The schema may carry
+        `identityKind` annotations (`primary-key` / `parent-key`) on scalar leaf
+        properties to drive D-Id extraction; those annotations are ignored by
+        validation. An optional `dIdDefinition` provides a metadata fallback for
+        third-party schemas that cannot be annotated inline.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ref:
+                  type: string
+                  description: Unique schema reference.
+                schema:
+                  $ref: '#/components/schemas/JsonSchema'
+                dIdDefinition:
+                  $ref: '#/components/schemas/DIdDefinition'
+              required: [ref, schema]
+            example:
+              ref: temperature-sensor-v1
+              schema:
+                $schema: http://json-schema.org/draft-07/schema#
+                type: object
+                properties:
+                  sensorId:
+                    type: string
+                    identityKind: primary-key
+                  location:
+                    type: string
+                  temperature:
+                    type: number
+                  timestamp:
+                    type: string
+                required: [sensorId, location, temperature]
+      responses:
+        '201':
+          description: Registered.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SchemaRegisterResult'
+              example:
+                ref: temperature-sensor-v1
+                version: 1
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    get:
+      tags: [Schemas]
+      operationId: listSchemas
+      summary: List all registered schemas
+      description: >
+        Returns every registered schema entry. Symmetric with
+        `GET /api/v1/config/document-types`. **Added in 0.5.0.**
+      responses:
+        '200':
+          description: All schema entries.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SchemaEntry'
+              example:
+                - ref: temperature-sensor-v1
+                  schema:
+                    type: object
+                    properties:
+                      sensorId:
+                        type: string
+                        identityKind: primary-key
+                    required: [sensorId]
+                  version: 1
+                  versions:
+                    - version: 1
+                      schema:
+                        type: object
+                      timestamp: '2026-07-17T09:00:00Z'
+                  lifecycle: active
+                  createdAt: '2026-07-17T09:00:00Z'
+                  updatedAt: '2026-07-17T09:00:00Z'
+
+  /api/v1/schemas/{schemaRef}:
+    get:
+      tags: [Schemas]
+      operationId: getSchema
+      summary: Retrieve a schema entry
+      parameters:
+        - $ref: '#/components/parameters/SchemaRefPath'
+      responses:
+        '200':
+          description: The schema entry.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SchemaEntry'
+              example:
+                ref: temperature-sensor-v1
+                schema:
+                  $schema: http://json-schema.org/draft-07/schema#
+                  type: object
+                  properties:
+                    sensorId:
+                      type: string
+                      identityKind: primary-key
+                    location:
+                      type: string
+                    temperature:
+                      type: number
+                    timestamp:
+                      type: string
+                  required: [sensorId, location, temperature]
+                version: 1
+                versions:
+                  - version: 1
+                    schema:
+                      type: object
+                    timestamp: '2026-07-17T09:00:00Z'
+                lifecycle: active
+                createdAt: '2026-07-17T09:00:00Z'
+                updatedAt: '2026-07-17T09:00:00Z'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Schemas]
+      operationId: updateSchema
+      summary: Update a schema (creates a new version)
+      parameters:
+        - $ref: '#/components/parameters/SchemaRefPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                schema:
+                  $ref: '#/components/schemas/JsonSchema'
+              required: [schema]
+            example:
+              schema:
+                $schema: http://json-schema.org/draft-07/schema#
+                type: object
+                properties:
+                  sensorId:
+                    type: string
+                    identityKind: primary-key
+                  location:
+                    type: string
+                  temperature:
+                    type: number
+                  humidity:
+                    type: number
+                  timestamp:
+                    type: string
+                required: [sensorId, location, temperature]
+      responses:
+        '200':
+          description: Updated (new version number returned).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SchemaRegisterResult'
+              example:
+                ref: temperature-sensor-v1
+                version: 2
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/schemas/{schemaRef}/decommission:
+    post:
+      tags: [Schemas]
+      operationId: decommissionSchema
+      summary: Decommission a schema
+      description: >
+        Rejected while the schema is the Master_Schema of an active
+        Document_Type (`MASTER_SCHEMA_ACTIVE`).
+      parameters:
+        - $ref: '#/components/parameters/SchemaRefPath'
+      responses:
+        '200':
+          description: Decommissioned.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  decommissioned:
+                    const: true
+                required: [decommissioned]
+              example:
+                decommissioned: true
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/v1/schemas/{schemaRef}/reactivate:
+    post:
+      tags: [Schemas]
+      operationId: reactivateSchema
+      summary: Reactivate a decommissioned schema
+      parameters:
+        - $ref: '#/components/parameters/SchemaRefPath'
+      responses:
+        '200':
+          description: Reactivated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reactivated:
+                    const: true
+                required: [reactivated]
+              example:
+                reactivated: true
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/v1/schemas/{schemaRef}/versions:
+    get:
+      tags: [Schemas]
+      operationId: getSchemaVersions
+      summary: List a schema's version history
+      parameters:
+        - $ref: '#/components/parameters/SchemaRefPath'
+      responses:
+        '200':
+          description: Version history (oldest first).
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SchemaVersion'
+              example:
+                - version: 1
+                  schema:
+                    type: object
+                  timestamp: '2026-07-17T09:00:00Z'
+                - version: 2
+                  schema:
+                    type: object
+                  timestamp: '2026-07-17T09:30:00Z'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/config/document-types:
+    post:
+      tags: [Document_Types]
+      operationId: registerDocumentType
+      summary: Register a Document_Type
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                masterSchema:
+                  type: string
+                  description: Ref of the registered Master_Schema.
+                model:
+                  $ref: '#/components/schemas/DocumentModel'
+                ttl:
+                  $ref: '#/components/schemas/Ttl'
+              required: [name, masterSchema, model]
+            example:
+              name: temperature-readings
+              masterSchema: temperature-sensor-v1
+              model: closed
+              ttl: 3600
+      responses:
+        '201':
+          description: Registered.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentTypeConfig'
+              example:
+                name: temperature-readings
+                masterSchema: temperature-sensor-v1
+                model: closed
+                ttl: 3600
+                channels: []
+                createdAt: '2026-07-17T09:05:00Z'
+                updatedAt: '2026-07-17T09:05:00Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    get:
+      tags: [Document_Types]
+      operationId: listDocumentTypes
+      summary: List all Document_Types
+      responses:
+        '200':
+          description: All Document_Type configs.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DocumentTypeConfig'
+              example:
+                - name: temperature-readings
+                  masterSchema: temperature-sensor-v1
+                  model: closed
+                  ttl: 3600
+                  channels: [garage-sensor]
+                  createdAt: '2026-07-17T09:05:00Z'
+                  updatedAt: '2026-07-17T09:05:00Z'
+
+  /api/v1/config/document-types/{documentType}:
+    get:
+      tags: [Document_Types]
+      operationId: getDocumentType
+      summary: Retrieve a Document_Type
+      parameters:
+        - $ref: '#/components/parameters/DocumentTypePath'
+      responses:
+        '200':
+          description: The Document_Type config.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentTypeConfig'
+              example:
+                name: temperature-readings
+                masterSchema: temperature-sensor-v1
+                model: closed
+                ttl: 3600
+                channels: [garage-sensor]
+                createdAt: '2026-07-17T09:05:00Z'
+                updatedAt: '2026-07-17T09:05:00Z'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Document_Types]
+      operationId: deleteDocumentType
+      summary: Delete a Document_Type
+      description: >
+        Rejected while documents of that type exist (including soft-deleted
+        ones) — `DOCUMENTS_EXIST`.
+      parameters:
+        - $ref: '#/components/parameters/DocumentTypePath'
+      responses:
+        '200':
+          description: Deleted.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted:
+                    const: true
+                required: [deleted]
+              example:
+                deleted: true
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/config/document-types/{documentType}/ttl:
+    put:
+      tags: [Document_Types]
+      operationId: setDocumentTypeTtl
+      summary: Set the Document_Type TTL
+      parameters:
+        - $ref: '#/components/parameters/DocumentTypePath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ttl:
+                  $ref: '#/components/schemas/Ttl'
+              required: [ttl]
+            example:
+              ttl: 7200
+      responses:
+        '200':
+          description: TTL set (governing value after any floor adjustment).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ttl:
+                    $ref: '#/components/schemas/Ttl'
+                  warning:
+                    $ref: '#/components/schemas/TtlWarning'
+                required: [ttl]
+              example:
+                ttl: 7200
+
+  /api/v1/config/ttl/document-type/{documentType}:
+    get:
+      tags: [Document_Types]
+      operationId: getEffectiveDocumentTypeTtl
+      summary: Get the effective Document_Type TTL
+      description: >
+        Returns the governing TTL the TtlManager actually consults for a type —
+        the Document_Type TTL, or the instance TTL if none is configured for the
+        type. Symmetric with `GET /api/v1/config/ttl/instance`.
+      parameters:
+        - $ref: '#/components/parameters/DocumentTypePath'
+      responses:
+        '200':
+          description: The effective Document_Type TTL.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  documentType:
+                    type: string
+                  ttl:
+                    $ref: '#/components/schemas/Ttl'
+                required: [documentType, ttl]
+              example:
+                documentType: temperature-readings
+                ttl: 3600
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/config/channels:
+    post:
+      tags: [Channels]
+      operationId: registerChannel
+      summary: Register a channel
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                channelId:
+                  type: string
+                documentType:
+                  type: string
+                channelSchema:
+                  type: string
+                  description: Optional Channel_Schema ref.
+                initialStatus:
+                  type: string
+                  enum: [active, inactive]
+                  description: |
+                    The channel's status at registration (default `active`):
+                    - `active` — accepts ingestion immediately.
+                    - `inactive` — registered but suspended; ingestion is
+                      rejected with `CHANNEL_INACTIVE` until activated.
+              required: [channelId, documentType]
+            example:
+              channelId: garage-sensor
+              documentType: temperature-readings
+              channelSchema: temperature-sensor-v1
+      responses:
+        '201':
+          description: Registered.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelConfig'
+              example:
+                channelId: garage-sensor
+                documentType: temperature-readings
+                channelSchema: temperature-sensor-v1
+                enrichmentBindings: []
+                status: active
+                endpoint: /api/v1/ingest/temperature-readings/garage-sensor
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    get:
+      tags: [Channels]
+      operationId: listChannels
+      summary: List channels
+      parameters:
+        - name: documentType
+          in: query
+          required: false
+          description: Filter channels by Document_Type.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Channels.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ChannelConfig'
+              example:
+                - channelId: garage-sensor
+                  documentType: temperature-readings
+                  channelSchema: temperature-sensor-v1
+                  enrichmentBindings:
+                    - fieldPath: sensorId
+                      staticValue: GARAGE-TEMP-01
+                    - fieldPath: location
+                      staticValue: Garage
+                  status: active
+                  endpoint: /api/v1/ingest/temperature-readings/garage-sensor
+
+  /api/v1/config/channels/{channelId}:
+    put:
+      tags: [Channels]
+      operationId: updateChannel
+      summary: Update a channel
+      parameters:
+        - $ref: '#/components/parameters/ChannelIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                channelSchema:
+                  type: [string, 'null']
+                  description: New Channel_Schema ref, or null to clear.
+            example:
+              channelSchema: temperature-sensor-v1
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelConfig'
+              example:
+                channelId: garage-sensor
+                documentType: temperature-readings
+                channelSchema: temperature-sensor-v1
+                enrichmentBindings: []
+                status: active
+                endpoint: /api/v1/ingest/temperature-readings/garage-sensor
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Channels]
+      operationId: deleteChannel
+      summary: Delete a channel
+      parameters:
+        - $ref: '#/components/parameters/ChannelIdPath'
+      responses:
+        '200':
+          description: Deleted.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted:
+                    const: true
+                required: [deleted]
+              example:
+                deleted: true
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/config/channels/{channelId}/activate:
+    post:
+      tags: [Channels]
+      operationId: activateChannel
+      summary: Activate a channel
+      parameters:
+        - $ref: '#/components/parameters/ChannelIdPath'
+      responses:
+        '200':
+          description: Activated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  channelId:
+                    type: string
+                  status:
+                    const: active
+                required: [channelId, status]
+              example:
+                channelId: garage-sensor
+                status: active
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/config/channels/{channelId}/deactivate:
+    post:
+      tags: [Channels]
+      operationId: deactivateChannel
+      summary: Deactivate a channel
+      parameters:
+        - $ref: '#/components/parameters/ChannelIdPath'
+      responses:
+        '200':
+          description: Deactivated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  channelId:
+                    type: string
+                  status:
+                    const: inactive
+                required: [channelId, status]
+              example:
+                channelId: garage-sensor
+                status: inactive
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/config/channels/{channelId}/enrichment:
+    put:
+      tags: [Channels]
+      operationId: setChannelEnrichment
+      summary: Register enrichment bindings for a channel
+      description: >
+        Each binding sets a static value at a field path during ingestion.
+        `dIdClassification` reports whether any binding targets an
+        `identityKind`-annotated field (`foreign`) or not (`native`).
+      parameters:
+        - $ref: '#/components/parameters/ChannelIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                bindings:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/EnrichmentBinding'
+              required: [bindings]
+            example:
+              bindings:
+                - fieldPath: sensorId
+                  staticValue: GARAGE-TEMP-01
+                - fieldPath: location
+                  staticValue: Garage
+      responses:
+        '200':
+          description: Registered.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  registered:
+                    const: true
+                  dIdClassification:
+                    type: string
+                    enum: [native, foreign]
+                    description: |
+                      Whether any registered binding targets a D-Id
+                      (`identityKind`-annotated) field:
+                      - `native` — no binding touches an identity field.
+                      - `foreign` — at least one binding sets an identity field,
+                        so the channel supplies (part of) the document's D-Id.
+                required: [registered, dIdClassification]
+              example:
+                registered: true
+                dIdClassification: native
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    get:
+      tags: [Channels]
+      operationId: getChannelEnrichment
+      summary: Get a channel's enrichment bindings
+      parameters:
+        - $ref: '#/components/parameters/ChannelIdPath'
+      responses:
+        '200':
+          description: Bindings.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EnrichmentBinding'
+              example:
+                - fieldPath: sensorId
+                  staticValue: GARAGE-TEMP-01
+                - fieldPath: location
+                  staticValue: Garage
+    delete:
+      tags: [Channels]
+      operationId: deleteChannelEnrichment
+      summary: Delete a channel's enrichment bindings
+      parameters:
+        - $ref: '#/components/parameters/ChannelIdPath'
+      responses:
+        '200':
+          description: Deleted.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted:
+                    const: true
+                required: [deleted]
+              example:
+                deleted: true
+
+  /api/v1/subscriptions:
+    post:
+      tags: [Subscriptions]
+      operationId: createSubscription
+      summary: Create a webhook subscription
+      description: >
+        Subscribe to document events by `document_type` or `document_id` scope.
+        When scope is `document_id`, provide `dId`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                scope:
+                  type: string
+                  enum: [document_type, document_id]
+                  description: |
+                    What the subscription watches:
+                    - `document_type` — fires for any document of
+                      `documentType`.
+                    - `document_id` — fires for one specific document (requires
+                      `dId`).
+                documentType:
+                  type: string
+                dId:
+                  type: string
+                  description: Required when scope is `document_id`.
+                callbackUrl:
+                  type: string
+                  format: uri
+                path:
+                  type: string
+                  description: Optional sub-path (leaf/bunch) filter within the document.
+                options:
+                  type: object
+                  additionalProperties: true
+              required: [scope, documentType, callbackUrl]
+            example:
+              scope: document_type
+              documentType: temperature-readings
+              callbackUrl: https://consumer.example.com/webhook
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+              example:
+                id: sub-muu900km-0001
+                scope: document_type
+                documentType: temperature-readings
+                callbackUrl: https://consumer.example.com/webhook
+                options:
+                  retrievalMode: full
+                  schemaAdoptionMode: pinned
+                  payloadFormat: envelope
+                  includeMetadata: false
+                  deliveryMode: fire-and-forget
+                createdAt: '2026-07-17T10:15:00Z'
+                active: true
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/subscriptions/{subscriptionId}:
+    delete:
+      tags: [Subscriptions]
+      operationId: cancelSubscription
+      summary: Cancel a subscription
+      parameters:
+        - name: subscriptionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Cancelled.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  cancelled:
+                    const: true
+                required: [cancelled]
+              example:
+                cancelled: true
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/documents/{documentType}/{dId}/subscriptions:
+    get:
+      tags: [Subscriptions]
+      operationId: listSubscriptionsByDocument
+      summary: List subscriptions for a document
+      parameters:
+        - $ref: '#/components/parameters/DocumentTypePath'
+        - $ref: '#/components/parameters/DIdPath'
+      responses:
+        '200':
+          description: Subscriptions for the document identity.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Subscription'
+              example:
+                - id: sub-mv65oc4u-0002
+                  scope: document_id
+                  documentType: temperature-readings
+                  dId:
+                    type: single
+                    value: GARAGE-TEMP-01
+                  callbackUrl: https://alerts.example.com/garage
+                  options:
+                    retrievalMode: full
+                    schemaAdoptionMode: pinned
+                    payloadFormat: envelope
+                    includeMetadata: false
+                    deliveryMode: fire-and-forget
+                  createdAt: '2026-07-17T10:16:00Z'
+                  active: true
+
+  /api/v1/document-types/{documentType}/subscriptions:
+    get:
+      tags: [Subscriptions]
+      operationId: listSubscriptionsByDocumentType
+      summary: List subscriptions for a Document_Type
+      parameters:
+        - $ref: '#/components/parameters/DocumentTypePath'
+      responses:
+        '200':
+          description: Subscriptions for the Document_Type.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Subscription'
+              example:
+                - id: sub-mv65ntlh-0001
+                  scope: document_type
+                  documentType: temperature-readings
+                  callbackUrl: https://consumer.example.com/webhook
+                  options:
+                    retrievalMode: full
+                    schemaAdoptionMode: pinned
+                    payloadFormat: envelope
+                    includeMetadata: false
+                    deliveryMode: fire-and-forget
+                  createdAt: '2026-07-17T10:15:00Z'
+                  active: true
+
+  /api/v1/quarantine:
+    get:
+      tags: [Quarantine]
+      operationId: listQuarantine
+      summary: List quarantined payloads
+      parameters:
+        - name: rejectionType
+          in: query
+          required: false
+          description: |
+            Filter by why the payload was quarantined:
+            - `parse-error` — the body was not valid JSON (`PARSE_ERROR`).
+            - `validation-failure` — the document failed schema validation.
+          schema:
+            type: string
+            enum: [parse-error, validation-failure]
+        - name: sourceIdentifier
+          in: query
+          required: false
+          description: Filter by the ingestion source identifier (e.g. channel).
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+      responses:
+        '200':
+          description: Quarantine entries.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  entries:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/QuarantineEntry'
+                  count:
+                    type: integer
+                required: [entries, count]
+              example:
+                entries:
+                  - ref: qr-muu900r6-0001
+                    payload:
+                      sensorId: BAD-1
+                      location: X
+                      temperature: not-a-number
+                      extra: nope
+                    context:
+                      receivedAt: '2026-07-17T10:20:00Z'
+                      sourceIdentifier: default
+                      schemaRef: temperature-sensor-v1
+                      rejectionReason: "/extra: Field 'extra' is not defined in the schema (DCM: no extensions allowed); /temperature: must be number"
+                      rejectionType: validation-failure
+                      controlHeaders: {}
+                count: 1
+
+  /api/v1/quarantine/{quarantineRef}:
+    get:
+      tags: [Quarantine]
+      operationId: getQuarantineEntry
+      summary: Retrieve a quarantine entry
+      parameters:
+        - name: quarantineRef
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The quarantine entry.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuarantineEntry'
+              example:
+                ref: qr-muu900r6-0001
+                payload:
+                  sensorId: BAD-1
+                  location: X
+                  temperature: not-a-number
+                  extra: nope
+                context:
+                  receivedAt: '2026-07-17T10:20:00Z'
+                  sourceIdentifier: default
+                  schemaRef: temperature-sensor-v1
+                  rejectionReason: "/extra: Field 'extra' is not defined in the schema (DCM: no extensions allowed); /temperature: must be number"
+                  rejectionType: validation-failure
+                  controlHeaders: {}
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/config/ttl/instance:
+    get:
+      tags: [Configuration]
+      operationId: getInstanceTtl
+      summary: Get the instance default TTL
+      responses:
+        '200':
+          description: Instance TTL.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ttl:
+                    $ref: '#/components/schemas/Ttl'
+                required: [ttl]
+              example:
+                ttl: infinite
+    put:
+      tags: [Configuration]
+      operationId: setInstanceTtl
+      summary: Set the instance default TTL
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ttl:
+                  $ref: '#/components/schemas/Ttl'
+              required: [ttl]
+            example:
+              ttl: 1800
+      responses:
+        '200':
+          description: TTL set.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ttl:
+                    $ref: '#/components/schemas/Ttl'
+                  warning:
+                    $ref: '#/components/schemas/TtlWarning'
+                required: [ttl]
+              example:
+                ttl: 1800
+
+  /api/v1/config/ttl/sweep-interval:
+    put:
+      tags: [Configuration]
+      operationId: setSweepInterval
+      summary: Set the TTL sweep interval
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                interval:
+                  type: integer
+                  description: Sweep interval in milliseconds.
+              required: [interval]
+            example:
+              interval: 60000
+      responses:
+        '200':
+          description: Sweep interval set.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sweepInterval:
+                    type: integer
+                required: [sweepInterval]
+              example:
+                sweepInterval: 60000
+
+  /api/v1/config/storage-strategy:
+    get:
+      tags: [Configuration]
+      operationId: getStorageStrategy
+      summary: Get the active storage strategy
+      responses:
+        '200':
+          description: Storage strategy.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorageStrategy'
+              example:
+                mode: memory
+    put:
+      tags: [Configuration]
+      operationId: setStorageStrategy
+      summary: Set the storage strategy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mode:
+                  $ref: '#/components/schemas/StorageMode'
+              required: [mode]
+            example:
+              mode: hybrid
+      responses:
+        '200':
+          description: Storage strategy set.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorageStrategy'
+              example:
+                mode: hybrid
+
+  /api/v1/config/storage/drain:
+    post:
+      tags: [Configuration]
+      operationId: drainStorage
+      summary: Drain buffered documents to persistent storage
+      responses:
+        '200':
+          description: Drained.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  drained:
+                    const: true
+                  documentsWritten:
+                    type: integer
+                  mode:
+                    type: string
+                required: [drained, documentsWritten, mode]
+              example:
+                drained: true
+                documentsWritten: 0
+                mode: hybrid
+
+  /api/v1/config/quarantine-policy:
+    get:
+      tags: [Configuration]
+      operationId: getQuarantinePolicy
+      summary: Get the quarantine policy
+      responses:
+        '200':
+          description: Quarantine policy.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuarantinePolicy'
+              example:
+                policy: data-errors-only
+    put:
+      tags: [Configuration]
+      operationId: setQuarantinePolicy
+      summary: Set the quarantine policy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                policy:
+                  $ref: '#/components/schemas/QuarantinePolicyValue'
+              required: [policy]
+            example:
+              policy: all-rejections
+      responses:
+        '200':
+          description: Quarantine policy set.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuarantinePolicy'
+              example:
+                policy: all-rejections
+
+  /api/v1/config/enrichment-policies:
+    get:
+      tags: [Configuration]
+      operationId: getEnrichmentPolicies
+      summary: Get enrichment policies
+      responses:
+        '200':
+          description: Enrichment policies.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnrichmentPolicies'
+              example:
+                precedence: environment-over-content
+                conflictResolution: accept-and-warn
+    put:
+      tags: [Configuration]
+      operationId: setEnrichmentPolicies
+      summary: Set enrichment policies
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnrichmentPolicies'
+            example:
+              precedence: content-over-environment
+      responses:
+        '200':
+          description: Enrichment policies set.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnrichmentPolicies'
+              example:
+                precedence: content-over-environment
+                conflictResolution: accept-and-warn
+
+  /api/v1/config/log-level:
+    get:
+      tags: [Configuration]
+      operationId: getLogLevel
+      summary: Get the logging state (level)
+      responses:
+        '200':
+          description: Logging state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoggingState'
+              example:
+                level: warn
+                destination: stdout
+    put:
+      tags: [Configuration]
+      operationId: setLogLevel
+      summary: Set the log level
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                level:
+                  $ref: '#/components/schemas/LogLevel'
+              required: [level]
+            example:
+              level: info
+      responses:
+        '200':
+          description: Logging state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoggingState'
+              example:
+                level: info
+                destination: stdout
+
+  /api/v1/config/log-destination:
+    get:
+      tags: [Configuration]
+      operationId: getLogDestination
+      summary: Get the logging state (destination)
+      responses:
+        '200':
+          description: Logging state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoggingState'
+              example:
+                level: info
+                destination: stdout
+    put:
+      tags: [Configuration]
+      operationId: setLogDestination
+      summary: Set the log destination
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                destination:
+                  $ref: '#/components/schemas/LogDestination'
+                filePath:
+                  type: string
+                  description: Required when destination is `file`.
+              required: [destination]
+            example:
+              destination: stdout
+      responses:
+        '200':
+          description: Logging state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoggingState'
+              example:
+                level: info
+                destination: stdout
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+components:
+  parameters:
+    DocumentTypePath:
+      name: documentType
+      in: path
+      required: true
+      description: The Document_Type name.
+      schema:
+        type: string
+    ChannelIdPath:
+      name: channelId
+      in: path
+      required: true
+      description: The channel identifier.
+      schema:
+        type: string
+    SchemaRefPath:
+      name: schemaRef
+      in: path
+      required: true
+      description: The schema reference.
+      schema:
+        type: string
+    DIdPath:
+      name: dId
+      in: path
+      required: true
+      description: >
+        The document identity. A composed D-Id joins its percent-encoded parts
+        with the `:` delimiter (e.g. `ORD-1001:L-1`). Glob characters (`*`, `?`)
+        switch GET to glob retrieval.
+      schema:
+        type: string
+      examples:
+        single:
+          summary: Single-key D-Id
+          value: GARAGE-TEMP-01
+        composed:
+          summary: Composed (multi-field) D-Id
+          value: ORD-1001:L-1
+        glob:
+          summary: Glob (match all)
+          value: '*'
+    TamaDBVersion:
+      name: TamaDB-Version
+      in: header
+      required: false
+      description: >
+        Expected version number for optimistic concurrency — a positive integer
+        (≥ 1). A mismatch is rejected with `VERSION_CONFLICT`.
+      schema:
+        type: integer
+        minimum: 1
+      example: 2
+    TamaDBTtl:
+      name: TamaDB-TTL
+      in: header
+      required: false
+      description: >
+        Document-level TTL — a non-negative integer number of seconds, or the
+        literal `infinite`.
+      schema:
+        oneOf:
+          - type: integer
+            minimum: 0
+          - type: string
+            const: infinite
+      example: 3600
+    TamaDBExpireAt:
+      name: TamaDB-Expire-At
+      in: header
+      required: false
+      description: >
+        Absolute expiry instant as an ISO-8601 / RFC 3339 date-time that
+        **must carry an explicit timezone** (a trailing `Z` or a `±HH:MM`
+        offset). A timezone-less value is rejected with
+        `INVALID_CONTROL_HEADER`.
+      schema:
+        type: string
+        format: date-time
+      example: '2026-07-17T18:00:00Z'
+    TamaDBSchema:
+      name: TamaDB-Schema
+      in: header
+      required: false
+      description: >
+        Explicit Storage_Schema override (a non-empty schema ref). This is the
+        only way to override the schema per request — it is header-only.
+      schema:
+        type: string
+        minLength: 1
+      example: temperature-sensor-v1
+
+  requestBodies:
+    BareDocument:
+      required: true
+      description: >
+        The **bare JSON document** — a JSON object, with no wrapper. A malformed
+        body becomes a `PARSE_ERROR` and is quarantined per policy; a valid-JSON
+        non-object is likewise a `PARSE_ERROR`.
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: true
+            description: The document payload (arbitrary JSON object).
+          examples:
+            directIngest:
+              summary: Direct ingest (Document_Type level)
+              description: >
+                A complete reading sent to the default channel. The D-Id is
+                extracted from the `sensorId` field (the `primary-key`).
+              value:
+                sensorId: LIVING-ROOM-01
+                location: Living Room
+                temperature: 21.5
+                timestamp: '2026-07-17T10:05:00Z'
+            channelIngest:
+              summary: Channel ingest (enrichment supplies identity)
+              description: >
+                A minimal reading sent via the `garage-sensor` channel; its
+                enrichment bindings inject `sensorId` and `location` before
+                storage.
+              value:
+                temperature: 18.2
+                timestamp: '2026-07-17T10:06:00Z'
+
+  responses:
+    IngestCreated:
+      description: Document created.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/IngestResult'
+          examples:
+            created:
+              summary: First write — created
+              value:
+                dId: GARAGE-TEMP-01
+                versionNo: 1
+                created: true
+            createdComposed:
+              summary: Composed (multi-field) D-Id — created
+              description: A composed D-Id is returned as an array of parts.
+              value:
+                dId: [ORD-1001, L-2]
+                versionNo: 1
+                created: true
+    IngestMerged:
+      description: Existing document merged (upsert).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/IngestResult'
+          examples:
+            merged:
+              summary: Subsequent write — merged (version incremented)
+              value:
+                dId: GARAGE-TEMP-01
+                versionNo: 2
+                created: false
+    BadRequest:
+      description: >
+        Bad request — e.g. `PARSE_ERROR`, `INVALID_CONTROL_HEADER`,
+        `INVALID_SCHEMA`, `INVALID_NAME`, `EMPTY_BINDINGS`,
+        `INVALID_FIELD_PATH`, `NO_DID_DEFINITION`, `NO_PRIMARY_KEY`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            invalidControlHeader:
+              summary: Invalid TamaDB-* control header
+              value:
+                code: INVALID_CONTROL_HEADER
+                message: 'Invalid value for header TamaDB-Version: expected a positive integer (>= 1)'
+    Forbidden:
+      description: >
+        Forbidden — e.g. `CHANNEL_INACTIVE`, `CHANNEL_BLOCKED`,
+        `MASTER_SCHEMA_ACTIVE`, `DOCUMENTS_EXIST`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: >
+        Not found — e.g. `DOCUMENT_NOT_FOUND`, `SCHEMA_NOT_FOUND`,
+        `DOCUMENT_TYPE_NOT_FOUND`, `CHANNEL_NOT_FOUND`, `QUARANTINE_NOT_FOUND`,
+        `SUBSCRIPTION_NOT_FOUND`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            documentNotFound:
+              summary: No such document
+              value:
+                code: DOCUMENT_NOT_FOUND
+                message: Document not found
+    Conflict:
+      description: >
+        Conflict — e.g. `VERSION_CONFLICT`, `ENRICHMENT_CONFLICT`,
+        `SCHEMA_ALREADY_EXISTS`, `DOCUMENT_TYPE_ALREADY_EXISTS`,
+        `CHANNEL_ALREADY_EXISTS`, `ALREADY_DECOMMISSIONED`, `ALREADY_ACTIVE`,
+        `ALREADY_DELETED`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            versionConflict:
+              summary: Optimistic-concurrency mismatch
+              value:
+                code: VERSION_CONFLICT
+                message: 'Version conflict: expected 99, current is 3'
+    Unprocessable:
+      description: Schema validation failed (`SCHEMA_VALIDATION_FAILED`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            schemaValidationFailed:
+              summary: DCM validation failure (quarantined)
+              value:
+                code: SCHEMA_VALIDATION_FAILED
+                message: "/extra: Field 'extra' is not defined in the schema (DCM: no extensions allowed); /temperature: must be number"
+                quarantineRef: qr-muu900r6-0001
+
+  schemas:
+    Ttl:
+      description: Time-to-live in seconds, or the literal `infinite`.
+      oneOf:
+        - type: integer
+          minimum: 0
+        - type: string
+          const: infinite
+    TtlWarning:
+      type: object
+      description: Emitted when a requested TTL was raised to the configured floor.
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        appliedTtl:
+          $ref: '#/components/schemas/Ttl'
+    DocumentModel:
+      type: string
+      enum: [closed, hybrid, open]
+      description: |
+        The validation model for a Document_Type:
+        - `closed` — **DCM** (Document_Closed_Model): strict validation; only
+          fields defined in the Master_Schema are allowed (no extensions).
+        - `hybrid` — **HDOM** (Hybrid_Document_Open_Model): Master_Schema
+          validation is enforced, but documents may carry additional fields.
+        - `open` — **DOM** (Document_Open_Model): no schema enforcement; any
+          structure is accepted.
+    StorageMode:
+      type: string
+      enum: [auto, memory, disk, hybrid]
+      description: |
+        The storage strategy governing where documents are held:
+        - `auto` — the engine selects a strategy automatically.
+        - `memory` — in-memory only (fastest; not durable across restart).
+        - `disk` — persisted to disk (durable; nothing buffered in memory).
+        - `hybrid` — in-memory working set with disk persistence.
+
+        `/health` reports the active mode; `GET/PUT /api/v1/config/storage-strategy`
+        reads and changes it at runtime.
+    LogLevel:
+      type: string
+      enum: [debug, info, warn, error, silent]
+      description: |
+        The active log verbosity, most to least verbose:
+        - `debug` — everything (default).
+        - `info` — informational events and above.
+        - `warn` — warnings and errors only.
+        - `error` — errors only.
+        - `silent` — logging disabled.
+    DId:
+      description: >
+        A document identity — a string for a single-key D-Id, or an array of
+        strings for a composed (multi-field) D-Id.
+      oneOf:
+        - type: string
+        - type: array
+          items:
+            type: string
+    StoredDId:
+      type: object
+      description: >
+        The internal (stored) form of a document identity, as currently returned
+        in a subscription record. `single` carries `value`; `composed` carries
+        `parts`. **Note:** this differs from the normalised D-Id wire form
+        (string / array of strings) used by every other endpoint — a known
+        inconsistency (the subscription output path leaks the internal object).
+        It is slated to be normalised to the shared `DId` form in 0.6.0 (see
+        `docs/working-notes/defect-subscription-did-representation.md`); the shape
+        here documents the current behaviour truthfully until then.
+      properties:
+        type:
+          type: string
+          enum: [single, composed]
+        value:
+          type: string
+          description: Present when `type` is `single`.
+        parts:
+          type: array
+          items:
+            type: string
+          description: Present when `type` is `composed`.
+      required: [type]
+    Health:
+      type: object
+      properties:
+        status:
+          const: ok
+          description: Always `ok` when the instance is serving.
+        version:
+          type: string
+          description: Resolved from package.json at runtime.
+        commit:
+          type: string
+          description: Build commit; `unknown` when no build-info is present.
+        storageMode:
+          $ref: '#/components/schemas/StorageMode'
+        logLevel:
+          $ref: '#/components/schemas/LogLevel'
+      required: [status, version, commit, storageMode, logLevel]
+    ServiceInfo:
+      type: object
+      description: Service-discovery metadata returned by `GET /api/v1/info`.
+      properties:
+        name:
+          type: string
+          description: Service/application name (from package.json).
+        description:
+          type: string
+          description: One-line service description (from package.json).
+        version:
+          type: string
+          description: Current semantic version (from package.json), e.g. `0.5.1`.
+        commit:
+          type: string
+          description: Build commit; `unknown` when no build-info is present.
+        apiVersion:
+          type: string
+          description: The URL contract version segment, e.g. `v1` (the `/api/v1` prefix).
+        environment:
+          type: string
+          description: >
+            Deployment stage label (configurable via `TAMADB_ENV`). Increment 1
+            defaults to `increment-1` (PoC — no production deployment).
+          example: increment-1
+        status:
+          type: string
+          description: Operational state.
+          example: operational
+        documentation:
+          type: string
+          format: uri
+          description: URL of the human-facing API reference (Redoc).
+        openapi:
+          type: string
+          format: uri
+          description: URL of the machine-readable OpenAPI document, for tooling discovery.
+        startedAt:
+          type: string
+          format: date-time
+          description: Process start time (ISO 8601), for a rough uptime signal.
+      required: [name, version, commit, apiVersion, environment, status, documentation, openapi, startedAt]
+    IngestResult:
+      type: object
+      properties:
+        dId:
+          $ref: '#/components/schemas/DId'
+        versionNo:
+          type: integer
+        created:
+          type: boolean
+          description: True on create (201), false on merge (200).
+        warning:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+          required: [code, message]
+      required: [dId, versionNo, created]
+    Document:
+      type: object
+      additionalProperties: true
+      description: >
+        A retrieved document. On a default GET, the response body is the **stored
+        document itself** — the producer's fields (plus any enrichment), exactly
+        as a consumer should read them. The example shows the `temperature-readings`
+        case. Internal version/TTL/soft-delete metadata and the structural
+        leaf/bunch tree are not part of the default retrieval shape; a field
+        projection (`?path=`) returns a `{ "_value": ... }` wrapper instead.
+    DocumentMatches:
+      type: object
+      description: A collection result (glob retrieval or value search).
+      properties:
+        matches:
+          type: array
+          items:
+            $ref: '#/components/schemas/Document'
+        count:
+          type: integer
+      required: [matches, count]
+    JsonSchema:
+      type: object
+      additionalProperties: true
+      description: >
+        A JSON Schema document. May carry the TamaDB-specific `identityKind`
+        keyword (`primary-key` / `parent-key`) on scalar leaf properties; that
+        keyword is ignored by validation and read only by the D-Id Extractor.
+    DIdDefinition:
+      type: object
+      description: Metadata fallback D-Id definition for schemas not annotated inline.
+      properties:
+        type:
+          type: string
+          enum: [single, composed]
+          description: >
+            `single` — one field forms the identity; `composed` — multiple
+            fields are combined into a multi-part D-Id.
+        fields:
+          type: array
+          items:
+            type: string
+          description: Field names or dotted field paths contributing to the D-Id.
+      required: [type, fields]
+    SchemaRegisterResult:
+      type: object
+      properties:
+        ref:
+          type: string
+        version:
+          type: integer
+      required: [ref, version]
+    SchemaVersion:
+      type: object
+      properties:
+        version:
+          type: integer
+        schema:
+          $ref: '#/components/schemas/JsonSchema'
+        timestamp:
+          type: string
+          format: date-time
+      required: [version, schema, timestamp]
+    SchemaEntry:
+      type: object
+      properties:
+        ref:
+          type: string
+        schema:
+          $ref: '#/components/schemas/JsonSchema'
+        version:
+          type: integer
+        versions:
+          type: array
+          items:
+            $ref: '#/components/schemas/SchemaVersion'
+        lifecycle:
+          type: string
+          enum: [active, decommissioned]
+          description: |
+            Schema lifecycle state:
+            - `active` — usable for Document_Type/channel assignment and validation.
+            - `decommissioned` — retired; cannot be assigned to new Document_Types
+              (reactivate to restore).
+        dIdDefinition:
+          $ref: '#/components/schemas/DIdDefinition'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [ref, schema, version, versions, lifecycle, createdAt, updatedAt]
+    DocumentTypeConfig:
+      type: object
+      properties:
+        name:
+          type: string
+        masterSchema:
+          type: string
+        model:
+          $ref: '#/components/schemas/DocumentModel'
+        ttl:
+          $ref: '#/components/schemas/Ttl'
+        channels:
+          type: array
+          items:
+            type: string
+          description: Channel IDs registered against this Document_Type.
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [name, masterSchema, model]
+    ChannelConfig:
+      type: object
+      properties:
+        channelId:
+          type: string
+        documentType:
+          type: string
+        channelSchema:
+          type: [string, 'null']
+        enrichmentBindings:
+          type: array
+          items:
+            $ref: '#/components/schemas/EnrichmentBinding'
+        status:
+          type: string
+          enum: [active, inactive]
+          description: |
+            Channel status:
+            - `active` — accepting ingestion.
+            - `inactive` — suspended; ingestion rejected with `CHANNEL_INACTIVE`.
+        endpoint:
+          type: string
+          description: The ingest URL path for this channel.
+      required: [channelId, documentType, status]
+    EnrichmentBinding:
+      type: object
+      properties:
+        fieldPath:
+          type: string
+        staticValue:
+          description: The static value injected at `fieldPath` (any JSON type).
+      required: [fieldPath, staticValue]
+    Subscription:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Server-assigned subscription identifier.
+        scope:
+          type: string
+          enum: [document_type, document_id]
+          description: >
+            `document_type` fires for any document of the type; `document_id`
+            fires for the single document named by `dId`.
+        documentType:
+          type: string
+        dId:
+          $ref: '#/components/schemas/StoredDId'
+        callbackUrl:
+          type: string
+          format: uri
+        path:
+          type: string
+        options:
+          type: object
+          additionalProperties: true
+          description: Delivery options (resolved defaults; present on a document_id subscription).
+        createdAt:
+          type: string
+          format: date-time
+        active:
+          type: boolean
+      required: [id, scope, documentType, callbackUrl]
+    QuarantineEntry:
+      type: object
+      description: A quarantined (rejected) ingestion payload with audit context.
+      properties:
+        ref:
+          type: string
+          description: Quarantine reference (the quarantineRef returned on rejection).
+        payload:
+          description: The rejected payload (as received).
+        context:
+          type: object
+          properties:
+            receivedAt:
+              type: string
+              format: date-time
+            sourceIdentifier:
+              type: string
+            schemaRef:
+              type: string
+            rejectionReason:
+              type: string
+            rejectionType:
+              type: string
+              enum: [parse-error, validation-failure, enrichment-conflict]
+              description: |
+                Why the payload was quarantined:
+                - `parse-error` — body was not valid JSON.
+                - `validation-failure` — failed schema validation.
+                - `enrichment-conflict` — a channel enrichment binding conflicted
+                  with the payload under a `discard-and-error` policy.
+            controlHeaders:
+              type: object
+              additionalProperties:
+                type: string
+              description: The request's TamaDB-* Control_Headers, captured verbatim.
+    StorageStrategy:
+      type: object
+      properties:
+        mode:
+          $ref: '#/components/schemas/StorageMode'
+      required: [mode]
+    QuarantinePolicy:
+      type: object
+      properties:
+        policy:
+          $ref: '#/components/schemas/QuarantinePolicyValue'
+      required: [policy]
+    QuarantinePolicyValue:
+      type: string
+      enum: [off, data-errors-only, all-rejections]
+      description: |
+        Which rejected ingests are captured in quarantine:
+        - `off` — nothing is quarantined.
+        - `data-errors-only` — only producer-content (payload-stage) errors:
+          a malformed body (`PARSE_ERROR`) or a schema/enrichment validation
+          failure. Control-plane and routing/config rejections are excluded.
+          (A rename to `payload-errors-only` is a deferred breaking change.)
+        - `all-rejections` — every rejection, including routing/config errors.
+    EnrichmentPolicies:
+      type: object
+      properties:
+        precedence:
+          type: string
+          enum: [environment-over-content, content-over-environment]
+          description: |
+            Who wins when a channel enrichment binding and the producer payload
+            both set the same field:
+            - `environment-over-content` — the channel-configured (environment)
+              value overrides the producer-supplied value.
+            - `content-over-environment` — the producer-supplied value wins.
+        conflictResolution:
+          type: string
+          enum: [accept-and-warn, discard-and-error]
+          description: |
+            What happens on an enrichment conflict:
+            - `accept-and-warn` — apply the precedence rule, store the document,
+              and emit a warning.
+            - `discard-and-error` — reject the ingest with `ENRICHMENT_CONFLICT`
+              (and quarantine per policy).
+    LoggingState:
+      type: object
+      description: The current logging configuration (both fields are returned).
+      properties:
+        level:
+          $ref: '#/components/schemas/LogLevel'
+        destination:
+          $ref: '#/components/schemas/LogDestination'
+        filePath:
+          type: string
+          description: Target file path; present/relevant when `destination` is `file`.
+      additionalProperties: true
+    LogDestination:
+      type: string
+      enum: [stdout, file, none]
+      description: |
+        Where log output is written:
+        - `stdout` — standard output (default).
+        - `file` — a file on disk (requires `filePath`).
+        - `none` — discard log output.
+    Error:
+      type: object
+      description: The standard error response shape.
+      properties:
+        code:
+          type: string
+          description: Machine-readable error code (see the error-code table).
+        message:
+          type: string
+        reason:
+          type: string
+        context:
+          type: object
+          properties:
+            operation:
+              type: string
+            documentType:
+              type: string
+            dId:
+              type: string
+            path:
+              type: string
+            versionNo:
+              type: integer
+        quarantineRef:
+          type: string
+          description: Present when the rejected payload was quarantined.
+        warning:
+          type: string
+      required: [code, message]

@@ -1,0 +1,257 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documents — TamaDB API Catalogue</title>
+    <meta name="author" content="Teneris">
+    <link rel="stylesheet" href="../style.css">
+    <link rel="icon" type="image/x-icon" href="../favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="../favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="../favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png">
+    <link rel="manifest" href="../site.webmanifest">
+</head>
+<body>
+    <div class="layout">
+        <nav class="sidebar" aria-label="API Catalogue navigation">
+            <div class="sidebar-brand"><a href="../index.html" style="color:inherit;text-decoration:none"><strong>T E N E R i S</strong></a></div>
+            <ul class="nav-tree" role="tree">
+                <li class="nav-group" role="treeitem" aria-expanded="true">
+                    <span class="nav-group-label">API Catalogue</span>
+                    <ul role="group">
+                        <li role="treeitem"><a href="../api-catalogue.html" class="nav-link">Overview</a></li>
+                        <li role="treeitem"><a href="../api-reference.html" class="nav-link">API Reference (Redoc)</a></li>
+                        <li role="treeitem"><a href="schemas.html" class="nav-link">Schemas</a></li>
+                        <li role="treeitem"><a href="document-types.html" class="nav-link">Document_Types</a></li>
+                        <li role="treeitem"><a href="channels.html" class="nav-link">Channels</a></li>
+                        <li role="treeitem"><a href="ingestion.html" class="nav-link">Ingestion</a></li>
+                        <li role="treeitem"><a href="documents.html" class="nav-link active" aria-current="page">Documents</a></li>
+                        <li role="treeitem"><a href="subscriptions.html" class="nav-link">Subscriptions</a></li>
+                        <li role="treeitem"><a href="quarantine.html" class="nav-link">Quarantine</a></li>
+                        <li role="treeitem"><a href="configuration.html" class="nav-link">Configuration</a></li>
+                        <li role="treeitem"><a href="health.html" class="nav-link">Health</a></li>
+                    </ul>
+                </li>
+                <li role="treeitem">
+                    <a href="../index.html" class="nav-link">&larr; Back to Site</a>
+                </li>
+            </ul>
+        </nav>
+        <main class="content" role="main">
+            <div class="page">
+                <h1>Documents</h1>
+                <p>Document retrieval, search, deletion, and per-document TTL management.</p>
+
+                <section class="category">
+                    <h2 class="category-header">Quick Reference</h2>
+                    <div class="quick-ref">
+                        <table>
+                            <thead>
+                                <tr><th>Method</th><th>Path</th><th>Summary</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><span class="method method-get">GET</span></td>
+                                    <td class="path">/api/v1/documents/{documentType}/{glob}</td>
+                                    <td>List/glob documents</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="method method-get">GET</span></td>
+                                    <td class="path">/api/v1/documents/{documentType}/{dId}</td>
+                                    <td>Retrieve a document by D-Id</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="method method-get">GET</span></td>
+                                    <td class="path">/api/v1/documents/{documentType}/{dId}?path={fieldPath}</td>
+                                    <td>Retrieve a specific field</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="method method-post">POST</span></td>
+                                    <td class="path">/api/v1/documents/{documentType}/search</td>
+                                    <td>Search documents by field value</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="method method-delete">DELETE</span></td>
+                                    <td class="path">/api/v1/documents/{documentType}/{dId}</td>
+                                    <td>Soft-delete a document</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="method method-put">PUT</span></td>
+                                    <td class="path">/api/v1/documents/{documentType}/{dId}/ttl</td>
+                                    <td>Set per-document TTL</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- GET /api/v1/documents/{documentType}/{glob} -->
+                <article class="endpoint" id="get-documents-glob">
+                    <div class="endpoint-header">
+                        <span class="method method-get">GET</span>
+                        <h3>/api/v1/documents/{documentType}/{glob}</h3>
+                    </div>
+                    <div class="endpoint-body">
+                        <p class="endpoint-description">Use <code>*</code> for all documents, or glob patterns like <code>GARAGE-*</code> to match subsets. Supports <code>*</code> and <code>?</code> wildcards.</p>
+                        <div class="endpoint-section">
+                            <h4>Response</h4>
+                            <div class="response-codes">
+                                <span class="response-code success"><span class="code">200</span> OK</span>
+                            </div>
+<pre class="code-block">{
+  <span class="key">"matches"</span>: [<span class="string">...document objects</span>],
+  <span class="key">"count"</span>: <span class="number">2</span>
+}</pre>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- GET /api/v1/documents/{documentType}/{dId} -->
+                <article class="endpoint" id="get-documents-did">
+                    <div class="endpoint-header">
+                        <span class="method method-get">GET</span>
+                        <h3>/api/v1/documents/{documentType}/{dId}</h3>
+                    </div>
+                    <div class="endpoint-body">
+                        <p class="endpoint-description">Retrieve a single document. For composed D-Ids, use <code>:</code> as delimiter in URL.</p>
+                        <div class="endpoint-section">
+                            <h4>Response</h4>
+                            <div class="response-codes">
+                                <span class="response-code success"><span class="code">200</span> OK</span>
+                                <span class="response-code error"><span class="code">404</span> Not Found</span>
+                            </div>
+<pre class="code-block">{
+  <span class="key">...document fields</span>
+}</pre>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- GET /api/v1/documents/{documentType}/{dId}?path={fieldPath} -->
+                <article class="endpoint" id="get-documents-field">
+                    <div class="endpoint-header">
+                        <span class="method method-get">GET</span>
+                        <h3>/api/v1/documents/{documentType}/{dId}?path={fieldPath}</h3>
+                    </div>
+                    <div class="endpoint-body">
+                        <p class="endpoint-description">Retrieve a single field from a document by dot-path.</p>
+                        <div class="endpoint-section">
+                            <h4>Query Parameters</h4>
+                            <table class="params-table">
+                                <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+                                <tbody>
+                                    <tr><td><span class="param-name">path</span></td><td><span class="param-type">string</span></td><td><span class="param-required">Yes</span></td><td>Dot-path to the field</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="endpoint-section">
+                            <h4>Response</h4>
+                            <div class="response-codes">
+                                <span class="response-code success"><span class="code">200</span> OK</span>
+                                <span class="response-code error"><span class="code">404</span> Not Found</span>
+                            </div>
+<pre class="code-block">{
+  <span class="key">"_value"</span>: <span class="number">19.1</span>
+}</pre>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- POST /api/v1/documents/{documentType}/search -->
+                <article class="endpoint" id="post-documents-search">
+                    <div class="endpoint-header">
+                        <span class="method method-post">POST</span>
+                        <h3>/api/v1/documents/{documentType}/search</h3>
+                    </div>
+                    <div class="endpoint-body">
+                        <p class="endpoint-description">Search documents by field value.</p>
+                        <div class="endpoint-section">
+                            <h4>Request Body</h4>
+                            <table class="params-table">
+                                <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+                                <tbody>
+                                    <tr><td><span class="param-name">field</span></td><td><span class="param-type">string</span></td><td><span class="param-required">Yes</span></td><td>Field name to search on</td></tr>
+                                    <tr><td><span class="param-name">value</span></td><td><span class="param-type">any</span></td><td><span class="param-required">Yes</span></td><td>Value to match</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="endpoint-section">
+                            <h4>Response</h4>
+                            <div class="response-codes">
+                                <span class="response-code success"><span class="code">200</span> OK</span>
+                            </div>
+<pre class="code-block">{
+  <span class="key">"matches"</span>: [<span class="string">...</span>],
+  <span class="key">"count"</span>: <span class="number">1</span>
+}</pre>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- DELETE /api/v1/documents/{documentType}/{dId} -->
+                <article class="endpoint" id="delete-documents-did">
+                    <div class="endpoint-header">
+                        <span class="method method-delete">DELETE</span>
+                        <h3>/api/v1/documents/{documentType}/{dId}</h3>
+                    </div>
+                    <div class="endpoint-body">
+                        <p class="endpoint-description">Soft-delete a document.</p>
+                        <div class="endpoint-section">
+                            <h4>Response</h4>
+                            <div class="response-codes">
+                                <span class="response-code success"><span class="code">200</span> OK</span>
+                                <span class="response-code error"><span class="code">404</span> Not Found</span>
+                            </div>
+<pre class="code-block">{
+  <span class="key">"deleted"</span>: <span class="boolean">true</span>
+}</pre>
+                        </div>
+                        <div class="endpoint-section">
+                            <div class="notes"><strong>Note:</strong> Data and history preserved for audit but document is never served again.</div>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- PUT /api/v1/documents/{documentType}/{dId}/ttl -->
+                <article class="endpoint" id="put-documents-ttl">
+                    <div class="endpoint-header">
+                        <span class="method method-put">PUT</span>
+                        <h3>/api/v1/documents/{documentType}/{dId}/ttl</h3>
+                    </div>
+                    <div class="endpoint-body">
+                        <p class="endpoint-description">Set per-document TTL.</p>
+                        <div class="endpoint-section">
+                            <h4>Request Body</h4>
+                            <table class="params-table">
+                                <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+                                <tbody>
+                                    <tr><td><span class="param-name">ttl</span></td><td><span class="param-type">number | "infinite"</span></td><td><span class="param-required">Yes</span></td><td>TTL in seconds, or "infinite" for no expiry</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="endpoint-section">
+                            <h4>Response</h4>
+                            <div class="response-codes">
+                                <span class="response-code success"><span class="code">200</span> OK</span>
+                                <span class="response-code error"><span class="code">404</span> Not Found</span>
+                            </div>
+<pre class="code-block">{
+  <span class="key">"dId"</span>: <span class="string">"GARAGE-TEMP-01"</span>,
+  <span class="key">"ttl"</span>: <span class="number">1800</span>
+}</pre>
+                        </div>
+                        <div class="endpoint-section">
+                            <div class="notes"><strong>Note:</strong> TTL hierarchy (most specific wins): Document &gt; Document_Type &gt; Instance. TTL=0 means transient (process and deliver, don't cache).</div>
+                        </div>
+                    </div>
+                </article>
+
+            </div>
+        </main>
+    </div>
+    <footer class="site-footer">
+        <p>© 2026 Teneris. All rights reserved. Licensed under <a href="https://www.apache.org/licenses/LICENSE-2.0" target="_blank" rel="noopener">Apache License 2.0</a>.</p>
+    </footer>
+</body>
+</html>

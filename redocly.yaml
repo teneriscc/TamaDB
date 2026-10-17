@@ -1,0 +1,70 @@
+# Redocly configuration for TamaDB.
+#
+# Drives two things:
+#   1. `redocly lint`      — CI gate against the OpenAPI contract (verify stage).
+#   2. `redocly build-docs`— the Teneris-themed static API Reference (pages job).
+#
+# The free, open-source Redoc renderer is used (read-only reference, no "try
+# it" console). Theming is light-touch Teneris branding, per the agreed
+# Option B in docs/working-notes/api-catalogue-openapi-redoc.md.
+
+apis:
+  tamadb:
+    root: openapi.yaml
+
+# Lint ruleset. `recommended` is a sensible baseline; a few rules are tightened
+# because this spec is the single source of truth and should stay complete.
+rules:
+  operation-operationId-unique: error
+  operation-operationId: error
+  operation-summary: error
+  no-unused-components: error
+  tag-description: warn
+  operation-tag-defined: error
+  # Increment 1 has NO authentication (see info.description "no authentication").
+  # The `security-defined` rule insists every operation reference a security
+  # scheme; disabling it reflects the real, intentional unauthenticated surface
+  # rather than documenting auth that does not exist. Revisit when auth lands.
+  security-defined: off
+  # Many config read/write endpoints genuinely return only 200 (the handlers do
+  # not emit a 4xx). Keep this as a non-blocking warning rather than inventing
+  # error responses the server never returns.
+  operation-4xx-response: warn
+  # The documented server is the local Increment 1 instance (localhost), not a
+  # placeholder example.com host.
+  no-server-example.com: off
+
+extends:
+  - recommended
+
+# Redoc render theming (consumed by `build-docs`). Teneris palette lifted from
+# docs/site/style.css: dark #161D26, teal CTA #0EA5A4, link blue #006CE0, with
+# Inter / JetBrains Mono.
+theme:
+  openapi:
+    hideDownloadButton: false
+    disableSearch: false
+    expandResponses: '200,201'
+    theme:
+      colors:
+        primary:
+          main: '#0EA5A4'
+        text:
+          primary: '#333333'
+        http:
+          get: '#006CE0'
+          post: '#0EA5A4'
+          put: '#5F6B7A'
+          delete: '#B4232C'
+      typography:
+        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif"
+        headings:
+          fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif"
+          fontWeight: '700'
+        code:
+          fontFamily: "'JetBrains Mono', Consolas, monospace"
+      sidebar:
+        backgroundColor: '#161D26'
+        textColor: '#FFFFFF'
+      rightPanel:
+        backgroundColor: '#232B37'

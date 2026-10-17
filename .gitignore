@@ -1,0 +1,23 @@
+node_modules/
+dist/
+coverage/
+*.log
+.env
+.DS_Store
+.tamadb-data/
+.tamadb-test-data/
+
+# Discretionary / private test datasets (steering: untracked & private).
+# Protects e.g. docs/test_cases/consignment_1.jsonl from accidental commits.
+docs/test_cases/
+
+# Producer emulator run outputs (JSON summaries, saved payloads)
+scripts/producer-emulator/out/
+
+
+# Publish staging (temporary directory used by publish script)
+.publish-staging/
+
+# Discretionary/personal test datasets (not tracked). Canonical, shared
+# test-case sources live in docs/test_cases_canonical/ instead.
+docs/test_cases/

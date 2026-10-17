@@ -1,0 +1,42 @@
+{
+  "name": "tamadb",
+  "version": "0.5.1",
+  "description": "TamaDB — a document-centric transmission cache for smart-endpoints/dumb-pipes architectures; a JSON document-oriented cache engine for producer/consumer data exchange (Increment 1).",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "build": "tsc -p tsconfig.json",
+    "postbuild": "node scripts/gen-build-info.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint .",
+    "lint:openapi": "redocly lint openapi.yaml",
+    "docs:api": "redocly build-docs openapi.yaml -o docs/site/api-reference.html",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "license": "Apache-2.0",
+  "private": true,
+  "dependencies": {
+    "ajv": "8.20.0",
+    "fastify": "5.9.0",
+    "pino": "10.3.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@redocly/cli": "1.34.20",
+    "@types/node": "26.0.1",
+    "@vitest/coverage-v8": "4.1.9",
+    "eslint": "10.6.0",
+    "fast-check": "4.8.0",
+    "tsx": "4.22.4",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.62.1",
+    "vitest": "4.1.9",
+    "yaml": "2.9.1"
+  }
+}

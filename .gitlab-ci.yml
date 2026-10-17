@@ -1,0 +1,259 @@
+# CI pipeline for TamaDB (T0.5).
+# Runs on the self-hosted GitLab CI runner.
+
+stages:
+  - verify
+  - deploy
+  - release
+  - backup
+
+# Each Node job installs its own dependencies via `npm ci`, restoring
+# node_modules/ from the per-pipeline cache (keyed on package-lock.json).
+#
+# NOTE (why there is no `install` job / no node_modules artifact): a prior
+# design had an `install` stage that uploaded node_modules/ (~28k files) as a
+# pipeline ARTIFACT for downstream jobs. On the self-hosted GitLab that upload
+# overwhelmed the coordinator (HTTP 500 on the multipart artifact POST), which
+# failed the whole pipeline — including the tag-only publish-image job, blocking
+# releases. Artifacts round-trip through the coordinator; the CACHE is local to
+# the runner. So we drop the artifact entirely: `npm ci` is ~10s and the cache
+# makes it cheap, and every job becomes independent (no single install gate).
+.node:
+  image: node:24-alpine
+  cache:
+    key:
+      files:
+        - package-lock.json
+    paths:
+      - node_modules/
+  before_script:
+    - npm ci
+
+lint:
+  extends: .node
+  stage: verify
+  script:
+    - npm run lint
+
+build:
+  extends: .node
+  stage: verify
+  script:
+    - npm run build
+
+test:
+  extends: .node
+  stage: verify
+  script:
+    - npm test
+
+# Lint the OpenAPI single-source-of-truth (0.5.0). Gates against spec drift and
+# gaps the way the old hand-written HTML never could.
+lint-openapi:
+  extends: .node
+  stage: verify
+  script:
+    - npm run lint:openapi
+
+# Render the Teneris-themed static Redoc API Reference into docs/site and build
+# the GitLab Pages `public/` artifact.
+#
+# IMPORTANT — this is NOT the public publish path. GitLab Pages is NOT enabled on
+# this instance, so the `public/` artifact is not served anywhere. This job's real
+# value is as a BUILD-HEALTH CHECK: it proves `npm run docs:api` (the Redoc
+# render) succeeds in the node:24-alpine CI image on every push to main.
+#
+# The canonical public docs site is tamadb.cc -> teneriscc.github.io (GitHub
+# Pages, served from the GitHub `teneriscc/TamaDB` repo). It is published by the
+# MANUAL `scripts/publish.ps1` mirror step (force-push of the .publish-manifest
+# subset to the `public` remote), which triggers .github/workflows/pages.yml
+# (GitHub Actions) to render + deploy. See
+# docs/working-notes/api-catalogue-openapi-redoc.md ("Publish model").
+#
+# NOTE: the render uses @redocly/cli v1 (Redoc 2) deliberately — the Redoc 2
+# `theme` object in redocly.yaml carries the Teneris branding. The v2 CLI drops
+# Redoc 2 theme options (CSS-only theming in Redoc 3), so it would render an
+# unbranded page. The pinned v1 bundle also needs the `yaml` package at runtime,
+# which is why it is a direct devDependency.
+pages:
+  extends: .node
+  stage: deploy
+  needs: ['build', 'lint-openapi']
+  script:
+    - npm run docs:api
+    - mkdir -p public
+    - cp -r docs/site/* public/
+  artifacts:
+    paths:
+      - public
+  only:
+    - main
+
+# ─── Docker Hub image publish (tags only) ──────────────────────────────────────
+# Builds a multi-arch (amd64 + arm64) image and pushes it to Docker Hub.
+# Runs ONLY on git tags (e.g. `v0.1.0`), so normal branch pipelines are unaffected.
+#
+# Required CI/CD variables (Settings → CI/CD → Variables — masked & protected):
+#   DOCKERHUB_USERNAME  Docker Hub account name
+#   DOCKERHUB_TOKEN     Docker Hub access token (NOT your password)
+#   DOCKERHUB_IMAGE     (optional) full image name, e.g. "youruser/tamadb".
+#                       Defaults to "$DOCKERHUB_USERNAME/tamadb" if unset.
+#
+# This job builds against the host Docker engine via the mounted Docker
+# socket — NOT Docker-in-Docker. The self-hosted runner's config.toml must
+# mount the host Docker socket into job containers, e.g.:
+#   [runners.docker]
+#     volumes = ["/cache", "/var/run/docker.sock:/var/run/docker.sock"]
+# No privileged mode or dind service is required.
+publish-image:
+  stage: release
+  image: docker:27-cli
+  variables:
+    # Talk to the host Docker daemon over the socket mounted by the runner.
+    DOCKER_HOST: unix:///var/run/docker.sock
+  rules:
+    # Only build/publish on version tags like v0.1.0
+    - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+/'
+  before_script:
+    - export IMAGE="${DOCKERHUB_IMAGE:-$DOCKERHUB_USERNAME/tamadb}"
+    # Strip a leading "v" from the tag so the image tag is 0.1.0, not v0.1.0.
+    - export VERSION="${CI_COMMIT_TAG#v}"
+    - echo "Publishing $IMAGE:$VERSION and $IMAGE:latest"
+    - docker version
+    # Register QEMU so we can build the non-native arch (amd64) on an arm64 runner.
+    - docker run --privileged --rm tonistiigi/binfmt --install all
+    - echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+    # A docker-container builder is required for multi-arch + --push.
+    - docker buildx create --use --name tamadb-builder --driver docker-container
+  script:
+    - docker buildx build
+      --platform linux/amd64,linux/arm64
+      --build-arg "TAMADB_COMMIT=$CI_COMMIT_SHA"
+      --tag "$IMAGE:$VERSION"
+      --tag "$IMAGE:latest"
+      --push
+      .
+    # Update the Docker Hub repository Overview (full + short description) from
+    # docs/DOCKERHUB.md, so the repo page is never blank and stays in sync with
+    # each release. Uses the Hub API (login -> JWT -> PATCH). Non-fatal: a
+    # description-update hiccup must not fail an otherwise-successful publish.
+    - |
+      apk add --no-cache curl jq >/dev/null 2>&1 || true
+      SHORT="Document-centric transmission cache: schema-validated JSON delivery with webhook push."
+      TOKEN=$(curl -s -H "Content-Type: application/json" \
+        -X POST -d "{\"username\":\"$DOCKERHUB_USERNAME\",\"password\":\"$DOCKERHUB_TOKEN\"}" \
+        https://hub.docker.com/v2/users/login/ | jq -r .token)
+      if [ -n "$TOKEN" ] && [ "$TOKEN" != "null" ]; then
+        FULL=$(jq -Rs . < docs/DOCKERHUB.md)
+        curl -s -o /dev/null -w "Docker Hub description update: HTTP %{http_code}\n" \
+          -H "Authorization: JWT $TOKEN" -H "Content-Type: application/json" \
+          -X PATCH \
+          -d "{\"full_description\":$FULL,\"description\":$(printf '%s' "$SHORT" | jq -Rs .)}" \
+          "https://hub.docker.com/v2/repositories/$IMAGE/"
+      else
+        echo "WARN: could not obtain Docker Hub API token; skipping description update."
+      fi
+  after_script:
+    - docker logout || true
+    - docker buildx rm tamadb-builder || true
+
+# ─── Nightly backup / authorship mirror → GitHub (Teneris-cc/TamaDB) ─────────────
+# Mirrors ALL GitLab branches and tags to the GitHub "authorship" repository.
+# Serves two purposes: (1) off-GitLab backup, (2) authorship/provenance record
+# with full branch + tag history.
+#
+# Deliberate design choices (DO NOT change without re-reading the rationale):
+#   • ADD-EVERYTHING, DELETE-NOTHING. This job never uses `--mirror` or
+#     `--prune` on the push, so a branch/tag deleted on GitLab is PRESERVED on
+#     authorship. That protects historical branches (e.g. an old merge tip)
+#     that are gone from GitLab but still wanted for provenance.
+#   • NEVER force-push. A diverged / non-fast-forward branch is allowed to fail
+#     for that ref only; it is NOT overwritten. A force in automation could
+#     silently destroy the very authorship history this repo exists to keep.
+#     Such a rejection is surfaced as a WARNING in the job log for manual review.
+#   • Scheduled nightly (plus manual run), NOT on every push — quieter, avoids
+#     racing with active development, and is sufficient for a backup archive.
+#
+# Required CI/CD variable (Settings → CI/CD → Variables — masked & protected):
+#   AUTHORSHIP_GITHUB_TOKEN  GitHub Personal Access Token for the account that
+#                            owns/can push to Teneris-cc/TamaDB (classic PAT with
+#                            `repo` scope, or a fine-grained PAT with Contents:RW
+#                            on that repository). Treat it like a password.
+#
+# How to run:
+#   • Automatically: create a pipeline schedule (Build → Pipeline schedules →
+#     New schedule, e.g. cron `0 3 * * *` for 03:00 daily). The schedule sets
+#     $CI_PIPELINE_SOURCE == "schedule", which is what gates this job.
+#   • On demand: this job is also exposed as a manual action on branch pipelines.
+backup-authorship:
+  stage: backup
+  # Use the same shell-based image as the other jobs (proven to pull/run on the
+  # runner) and install git via apk. NOTE: do NOT use the `alpine/git` image here
+  # — its ENTRYPOINT is `git`, so GitLab's job shell is passed to git as a
+  # subcommand ("git: 'sh' is not a git command") and the job fails before it runs.
+  image: node:24-alpine
+  needs: []
+  before_script:
+    - apk add --no-cache git
+  rules:
+    # Nightly (and any other scheduled pipeline).
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    # Manual button on normal pipelines, so you can trigger a backup any time.
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+      when: manual
+      allow_failure: true
+  variables:
+    # We need the complete ref graph, not GitLab CI's default shallow checkout,
+    # otherwise branches/tags would be pushed with missing history.
+    GIT_STRATEGY: clone
+    GIT_DEPTH: 0
+    GITHUB_REPO: "github.com/Teneris-cc/TamaDB.git"
+  script:
+    - |
+      set -eu
+      if [ -z "${AUTHORSHIP_GITHUB_TOKEN:-}" ]; then
+        echo "ERROR: AUTHORSHIP_GITHUB_TOKEN is not set. Add it as a masked & protected CI/CD variable."
+        exit 1
+      fi
+
+      # Fetch every branch and tag from GitLab (origin) into local refs.
+      # GITLAB_PROJECT_URL uses the CI job token so no extra GitLab credential is needed.
+      echo "Fetching full ref set from GitLab origin ..."
+      git remote set-url origin "https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}:${CI_SERVER_PORT}/${CI_PROJECT_PATH}.git"
+      git fetch origin --prune --tags "+refs/heads/*:refs/remotes/origin/*"
+
+      # Point a second remote at GitHub authorship, token embedded for this job only.
+      git remote remove authorship 2>/dev/null || true
+      git remote add authorship "https://x-access-token:${AUTHORSHIP_GITHUB_TOKEN}@${GITHUB_REPO}"
+
+      # ── Push every GitLab branch (add/update only; no delete, no force) ──
+      # We iterate per-branch so one diverged branch cannot abort the rest.
+      echo "Mirroring branches to authorship ..."
+      rejected=""
+      for ref in $(git for-each-ref --format='%(refname:strip=3)' refs/remotes/origin/ | grep -v '^HEAD$'); do
+        echo "→ branch: $ref"
+        if ! git push authorship "refs/remotes/origin/${ref}:refs/heads/${ref}" 2>&1; then
+          echo "WARNING: branch '$ref' was rejected (likely non-fast-forward / diverged). NOT forcing."
+          rejected="${rejected} ${ref}"
+        fi
+      done
+
+      # ── Push all tags (add only; never overwrite an existing tag) ──
+      echo "Mirroring tags to authorship ..."
+      git push authorship --tags 2>&1 || echo "WARNING: one or more tags were rejected (NOT forcing)."
+
+      if [ -n "$rejected" ]; then
+        echo "=================================================================="
+        echo "Backup completed with rejected branches needing manual review:"
+        echo "  $rejected"
+        echo "These were NOT force-pushed, to protect authorship history."
+        echo "Investigate with:  git log --oneline origin/<branch>..authorship/<branch>"
+        echo "=================================================================="
+      else
+        echo "Backup completed: all branches and tags mirrored to authorship."
+      fi
+  # No after_script cleanup is needed: the job container (and its git config,
+  # including the token-bearing 'authorship' remote) is discarded when the job
+  # ends, and AUTHORSHIP_GITHUB_TOKEN is a masked variable so it is redacted in
+  # logs. (A git-based cleanup here would also fail: after_script runs in a fresh
+  # container where git from before_script is not installed.)

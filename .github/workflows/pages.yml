@@ -1,0 +1,57 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Render the Teneris-themed static Redoc API Reference into docs/site so
+      # it is published alongside the hand-written catalogue. Uses @redocly/cli
+      # v1 (Redoc 2) so the Teneris theme object in redocly.yaml is honoured.
+      #
+      # Non-fatal by design: docs/site/api-reference.html is committed (a
+      # pre-rendered, themed fallback shipped via .publish-manifest), so if the
+      # render fails for any reason the deploy still publishes the committed
+      # page rather than failing the whole site deploy. A failure here is
+      # surfaced in the log for follow-up.
+      - name: Build API reference (Redoc)
+        run: npm run docs:api || echo "::warning::Redoc render failed; deploying the committed docs/site/api-reference.html fallback."
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

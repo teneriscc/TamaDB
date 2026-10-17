@@ -1,0 +1,202 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ingestion — TamaDB API Catalogue</title>
+    <meta name="author" content="Teneris">
+    <link rel="stylesheet" href="../style.css">
+    <link rel="icon" type="image/x-icon" href="../favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="../favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="../favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png">
+    <link rel="manifest" href="../site.webmanifest">
+</head>
+<body>
+    <div class="layout">
+        <nav class="sidebar" aria-label="API Catalogue navigation">
+            <div class="sidebar-brand"><a href="../index.html" style="color:inherit;text-decoration:none"><strong>T E N E R i S</strong></a></div>
+            <ul class="nav-tree" role="tree">
+                <li class="nav-group" role="treeitem" aria-expanded="true">
+                    <span class="nav-group-label">API Catalogue</span>
+                    <ul role="group">
+                        <li role="treeitem"><a href="../api-catalogue.html" class="nav-link">Overview</a></li>
+                        <li role="treeitem"><a href="../api-reference.html" class="nav-link">API Reference (Redoc)</a></li>
+                        <li role="treeitem"><a href="schemas.html" class="nav-link">Schemas</a></li>
+                        <li role="treeitem"><a href="document-types.html" class="nav-link">Document_Types</a></li>
+                        <li role="treeitem"><a href="channels.html" class="nav-link">Channels</a></li>
+                        <li role="treeitem"><a href="ingestion.html" class="nav-link active" aria-current="page">Ingestion</a></li>
+                        <li role="treeitem"><a href="documents.html" class="nav-link">Documents</a></li>
+                        <li role="treeitem"><a href="subscriptions.html" class="nav-link">Subscriptions</a></li>
+                        <li role="treeitem"><a href="quarantine.html" class="nav-link">Quarantine</a></li>
+                        <li role="treeitem"><a href="configuration.html" class="nav-link">Configuration</a></li>
+                        <li role="treeitem"><a href="health.html" class="nav-link">Health</a></li>
+                    </ul>
+                </li>
+                <li role="treeitem">
+                    <a href="../index.html" class="nav-link">&larr; Back to Site</a>
+                </li>
+            </ul>
+        </nav>
+        <main class="content" role="main">
+            <div class="page">
+                <h1>Ingestion</h1>
+                <p>Document ingestion endpoints. TamaDB uses upsert semantics — there is no separate create vs update. If the document exists, incoming fields are merged.</p>
+
+                <section class="category">
+                    <h2 class="category-header">Quick Reference</h2>
+                    <div class="quick-ref">
+                        <table>
+                            <thead>
+                                <tr><th>Method</th><th>Path</th><th>Summary</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><span class="method method-post">POST</span></td>
+                                    <td class="path">/api/v1/ingest/{documentType}</td>
+                                    <td>Direct ingestion via Document_Type</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="method method-post">POST</span></td>
+                                    <td class="path">/api/v1/ingest/{documentType}/{channelId}</td>
+                                    <td>Channel ingestion (with enrichment)</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- POST /api/v1/ingest/{documentType} -->
+                <article class="endpoint" id="post-ingest-direct">
+                    <div class="endpoint-header">
+                        <span class="method method-post">POST</span>
+                        <h3>/api/v1/ingest/{documentType}</h3>
+                    </div>
+                    <div class="endpoint-body">
+                        <p class="endpoint-description">Ingest a document directly via its Document_Type. Uses upsert semantics — creates the document if new, merges fields if it already exists.</p>
+                        <div class="endpoint-section">
+                            <h4>Request Body</h4>
+                            <p>The request body is the <strong>bare JSON document</strong> (a JSON object) — no wrapper. <code>Content-Type: application/json</code>.</p>
+<pre class="code-block">{
+  <span class="key">"sensorId"</span>: <span class="string">"LIVING-ROOM-01"</span>,
+  <span class="key">"location"</span>: <span class="string">"Living Room"</span>,
+  <span class="key">"temperature"</span>: <span class="number">21.5</span>,
+  <span class="key">"timestamp"</span>: <span class="string">"2026-07-17T10:05:00Z"</span>
+}</pre>
+                        </div>
+                        <div class="endpoint-section">
+                            <h4>Control Headers (optional)</h4>
+                            <p>Per-request instructions travel as reserved <code>TamaDB-*</code> headers, not body fields. An invalid value is rejected with <code>INVALID_CONTROL_HEADER</code>.</p>
+                            <table class="params-table">
+                                <thead><tr><th>Header</th><th>Type</th><th>Description</th></tr></thead>
+                                <tbody>
+                                    <tr><td><span class="param-name">TamaDB-Version</span></td><td><span class="param-type">integer ≥ 1</span></td><td>Expected version for optimistic concurrency control</td></tr>
+                                    <tr><td><span class="param-name">TamaDB-TTL</span></td><td><span class="param-type">integer ≥ 0 | "infinite"</span></td><td>Per-document TTL override (seconds)</td></tr>
+                                    <tr><td><span class="param-name">TamaDB-Expire-At</span></td><td><span class="param-type">RFC 3339 (explicit timezone)</span></td><td>Absolute Expire-at-Point-in-Time deadline</td></tr>
+                                    <tr><td><span class="param-name">TamaDB-Schema</span></td><td><span class="param-type">schema ref</span></td><td>Explicit Storage_Schema override</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="endpoint-section">
+                            <h4>Response — New Document</h4>
+                            <div class="response-codes">
+                                <span class="response-code success"><span class="code">201</span> Created</span>
+                            </div>
+<pre class="code-block">{
+  <span class="key">"dId"</span>: <span class="string">"LIVING-ROOM-01"</span>,
+  <span class="key">"versionNo"</span>: <span class="number">1</span>,
+  <span class="key">"created"</span>: <span class="boolean">true</span>
+}</pre>
+                        </div>
+                        <div class="endpoint-section">
+                            <h4>Response — Updated Document</h4>
+                            <div class="response-codes">
+                                <span class="response-code success"><span class="code">200</span> OK</span>
+                            </div>
+<pre class="code-block">{
+  <span class="key">"dId"</span>: <span class="string">"LIVING-ROOM-01"</span>,
+  <span class="key">"versionNo"</span>: <span class="number">2</span>,
+  <span class="key">"created"</span>: <span class="boolean">false</span>
+}</pre>
+                        </div>
+                        <div class="endpoint-section">
+                            <h4>Errors</h4>
+                            <div class="response-codes">
+                                <span class="response-code error"><span class="code">400</span> Bad Request / INVALID_CONTROL_HEADER</span>
+                                <span class="response-code error"><span class="code">404</span> Document_Type not found</span>
+                                <span class="response-code error"><span class="code">409</span> Version conflict</span>
+                                <span class="response-code error"><span class="code">422</span> Schema validation failed</span>
+                            </div>
+                        </div>
+                        <div class="endpoint-section">
+                            <div class="notes"><strong>Note:</strong> D-Id is extracted from the document using the schema's <code>identityKind</code> annotations. For composed D-Ids (parent-key + primary-key), the response returns an array.</div>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- POST /api/v1/ingest/{documentType}/{channelId} -->
+                <article class="endpoint" id="post-ingest-channel">
+                    <div class="endpoint-header">
+                        <span class="method method-post">POST</span>
+                        <h3>/api/v1/ingest/{documentType}/{channelId}</h3>
+                    </div>
+                    <div class="endpoint-body">
+                        <p class="endpoint-description">Ingest a document via a specific channel. Enrichment bindings are applied to the payload before validation.</p>
+                        <div class="endpoint-section">
+                            <h4>Request Body</h4>
+                            <p>The request body is the <strong>bare JSON document</strong> (a JSON object) — no wrapper. Enrichment may supply identity/other fields, so the producer can send a minimal payload.</p>
+<pre class="code-block">{
+  <span class="key">"temperature"</span>: <span class="number">18.2</span>,
+  <span class="key">"timestamp"</span>: <span class="string">"2026-07-17T10:06:00Z"</span>
+}</pre>
+                        </div>
+                        <div class="endpoint-section">
+                            <h4>Control Headers (optional)</h4>
+                            <p>Same reserved <code>TamaDB-*</code> headers as direct ingestion: <code>TamaDB-Version</code>, <code>TamaDB-TTL</code>, <code>TamaDB-Expire-At</code>, <code>TamaDB-Schema</code>. An invalid value is rejected with <code>INVALID_CONTROL_HEADER</code>.</p>
+                        </div>
+                        <div class="endpoint-section">
+                            <h4>Response — New Document</h4>
+                            <div class="response-codes">
+                                <span class="response-code success"><span class="code">201</span> Created</span>
+                            </div>
+<pre class="code-block">{
+  <span class="key">"dId"</span>: <span class="string">"LIVING-ROOM-01"</span>,
+  <span class="key">"versionNo"</span>: <span class="number">1</span>,
+  <span class="key">"created"</span>: <span class="boolean">true</span>
+}</pre>
+                        </div>
+                        <div class="endpoint-section">
+                            <h4>Response — Updated Document</h4>
+                            <div class="response-codes">
+                                <span class="response-code success"><span class="code">200</span> OK</span>
+                            </div>
+<pre class="code-block">{
+  <span class="key">"dId"</span>: <span class="string">"LIVING-ROOM-01"</span>,
+  <span class="key">"versionNo"</span>: <span class="number">2</span>,
+  <span class="key">"created"</span>: <span class="boolean">false</span>
+}</pre>
+                        </div>
+                        <div class="endpoint-section">
+                            <h4>Errors</h4>
+                            <div class="response-codes">
+                                <span class="response-code error"><span class="code">400</span> Bad Request</span>
+                                <span class="response-code error"><span class="code">403</span> Channel inactive or blocked</span>
+                                <span class="response-code error"><span class="code">404</span> Document_Type or channel not found</span>
+                                <span class="response-code error"><span class="code">409</span> Enrichment or version conflict</span>
+                                <span class="response-code error"><span class="code">422</span> Schema validation failed</span>
+                            </div>
+                        </div>
+                        <div class="endpoint-section">
+                            <div class="notes"><strong>Note:</strong> Enrichment bindings are applied to the payload before validation. The channel must be in <code>active</code> status — inactive or blocked channels return 403.</div>
+                        </div>
+                    </div>
+                </article>
+
+            </div>
+        </main>
+    </div>
+    <footer class="site-footer">
+        <p>© 2026 Teneris. All rights reserved. Licensed under <a href="https://www.apache.org/licenses/LICENSE-2.0" target="_blank" rel="noopener">Apache License 2.0</a>.</p>
+    </footer>
+</body>
+</html>

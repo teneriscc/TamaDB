@@ -1,0 +1,1121 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TamaDB — Presentation</title>
+    <meta name="author" content="Teneris">
+    <meta name="copyright" content="© 2026 Teneris. All rights reserved. Licensed under Apache 2.0.">
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+    <link rel="manifest" href="site.webmanifest">
+</head>
+<body>
+    <div class="layout">
+        <nav class="sidebar" aria-label="Site navigation">
+            <div class="sidebar-brand"><strong>T E N E R i S</strong></div>
+            <ul class="nav-tree" role="tree">
+                <li class="nav-group" role="treeitem" aria-expanded="true">
+                    <span class="nav-group-label">Projects</span>
+                    <ul role="group">
+                        <li role="treeitem">
+                            <a href="#tl-governance" class="nav-link">Transmission Layer Governance</a>
+                        </li>
+                        <li class="nav-group" role="treeitem" aria-expanded="true">
+                            <span class="nav-group-label">TamaDB</span>
+                            <ul role="group">
+                                <li role="treeitem">
+                                    <a href="#about-tamadb" class="nav-link active"
+                                       aria-current="page">About TamaDB</a>
+                                </li>
+                                <li role="treeitem">
+                                    <a href="#user-manual" class="nav-link">TamaDB User Manual</a>
+                                </li>
+                                <li role="treeitem">
+                                    <a href="api-catalogue.html" class="nav-link">TamaDB API Catalogue</a>
+                                </li>
+                            </ul>
+                        </li>
+                        <li class="nav-group" role="treeitem" aria-expanded="true">
+                            <span class="nav-group-label">PamaDB</span>
+                            <ul role="group">
+                                <li role="treeitem">
+                                    <a href="#pamadb" class="nav-link">About PamaDB</a>
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                </li>
+                <li role="treeitem">
+                    <a href="#about-me" class="nav-link">About Me</a>
+                </li>
+                <li role="treeitem">
+                    <a href="#contact" class="nav-link">Contact</a>
+                </li>
+                <li role="treeitem">
+                    <a href="#external-links" class="nav-link">External Links</a>
+                </li>
+            </ul>
+        </nav>
+        <main class="content" role="main">
+            <section id="tl-governance" class="page" hidden aria-labelledby="tl-governance-heading">
+                <h1 id="tl-governance-heading">Transmission Layer Governance</h1>
+                <p>This document defines the principles, guardrails, and boundaries that govern the capabilities of the transmission layer within the smart-endpoints/dumb-pipes data architecture. Any system operating in this layer — including TamaDB and PamaDB — must conform to these governance rules.</p>
+
+                <h2>What the Transmission Layer Is</h2>
+                <p>The transmission layer is a <strong>purpose-built intermediary</strong> responsible for the reliable, validated, and timely exchange of structured data between producers and consumers. It occupies the "pipe" in a smart-endpoints/dumb-pipes architecture.</p>
+
+                <h3>Unconditional Responsibilities</h3>
+                <table>
+                    <thead>
+                        <tr><th>Responsibility</th><th>Description</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Reception</td><td>Accept data from producers via defined ingestion channels</td></tr>
+                        <tr><td>Identity Resolution</td><td>Determine the unique identity of each document from its content or context</td></tr>
+                        <tr><td>State Management</td><td>Maintain the current merged state of each document with per-field versioning</td></tr>
+                        <tr><td>Delivery</td><td>Push document state to registered consumers via configured channels</td></tr>
+                        <tr><td>Observability</td><td>Provide structured logging, quarantine, and inspection capabilities</td></tr>
+                    </tbody>
+                </table>
+
+                <h3>Non-Responsibilities</h3>
+                <p>The transmission layer does <strong>NOT</strong>:</p>
+                <ul>
+                    <li>Apply business logic or decision rules</li>
+                    <li>Generate derived or computed values</li>
+                    <li>Transform data semantics (change meaning)</li>
+                    <li>Store data permanently (archive)</li>
+                    <li>Aggregate data across documents</li>
+                    <li>Authenticate end-users</li>
+                    <li>Orchestrate multi-step workflows</li>
+                </ul>
+
+                <h2>The Semantic Preservation Principle</h2>
+                <p>The transmission layer shall preserve the semantic equivalence of every attribute it transports. For each individual attribute that enters and exits the layer, the meaning at exit must equal the meaning at entry.</p>
+
+                <h3>No Signification Loss</h3>
+                <p>Data that enters the transmission layer must be recoverable from what exits it. Prohibited: truncation, rounding, field dropping without explicit consumer consent, lossy encoding changes, or any operation where the original value cannot be reconstructed from the output.</p>
+
+                <h3>No Signification Creation</h3>
+                <p>The transmission layer does not generate new meaning. Business rule evaluation, derived fields, status inference, aggregation, and prediction belong outside the transmission layer.</p>
+
+                <h2>Data Ownership Model</h2>
+                <p>The architecture defines four roles along two axes:</p>
+                <table>
+                    <thead>
+                        <tr><th>Role</th><th>Layer</th><th>Authority</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><strong>Producer</strong></td><td>Smart endpoint</td><td>Assigner/Owner — originates data, defines what is transmitted</td></tr>
+                        <tr><td><strong>Sender</strong></td><td>Dumb pipe</td><td>Custodian — executes the producer's instructions</td></tr>
+                        <tr><td><strong>Receiver</strong></td><td>Dumb pipe</td><td>Custodian — executes the consumer's instructions</td></tr>
+                        <tr><td><strong>Consumer</strong></td><td>Smart endpoint</td><td>Assignee — consumes, interprets, and acts upon data</td></tr>
+                    </tbody>
+                </table>
+                <p>The transmission layer is a <strong>custodian</strong>, not an owner: it holds data temporarily, does not claim rights over the content, does not alter its meaning, and discards it when TTL expires.</p>
+
+                <h2>Directional Constraints</h2>
+                <h3>Inbound (Receiving Bay)</h3>
+                <ul>
+                    <li>Assembly permitted — enrichment may add producer-delegated fields</li>
+                    <li>Validation enforced — schema compliance is mandatory (DCM/HDOM)</li>
+                    <li>Document significance may grow</li>
+                    <li>Payload-supplied fields are preserved</li>
+                </ul>
+                <h3>Hold (State Management)</h3>
+                <ul>
+                    <li>No content alteration — the Hold never inspects, interprets, or modifies attribute values</li>
+                    <li>Operations are structural only (merge, version, expire)</li>
+                    <li>Strongest expression of the Semantic Preservation Principle</li>
+                </ul>
+                <h3>Outbound (Dispatch Bay)</h3>
+                <ul>
+                    <li>Reduction permitted — consumer-directed filtering may omit fields</li>
+                    <li>Translation permitted — consumer-directed representation adaptation</li>
+                    <li>Document significance may shrink, must never grow</li>
+                    <li>No attributes added that weren't in the stored document</li>
+                </ul>
+
+                <h2>Structural Model</h2>
+<img src="assets/structural-model.svg" alt="Structural model showing three levels of the Transmission Layer: Receiving Bay (inbound, producer-instructed) processes Parse, Enrich, Extract D-Id, and Validate. Hold (state, custodial only) processes Merge, Version, History, TTL registration, and Lifecycle. Dispatch Bay (outbound, consumer-instructed) processes Match subscriptions, Format payload, Shape, and Enqueue delivery." style="width:100%; max-width:820px; height:auto;">
+
+                <h2>Guardrails for Capability Evaluation</h2>
+                <p>When evaluating whether a proposed capability belongs in the transmission layer:</p>
+                <table>
+                    <thead>
+                        <tr><th>#</th><th>Question</th><th>If YES →</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>1</td><td>Does it create new meaning from existing data?</td><td>Does NOT belong</td></tr>
+                        <tr><td>2</td><td>Does it apply business rules or domain logic?</td><td>Does NOT belong</td></tr>
+                        <tr><td>3</td><td>Does it lose attribute-level signification without consumer consent?</td><td>Violates Semantic Preservation</td></tr>
+                        <tr><td>4</td><td>Does it alter payload content without producer delegation?</td><td>Violates data ownership model</td></tr>
+                        <tr><td>5</td><td>Does it require knowledge of what the data <em>means</em>?</td><td>Likely does NOT belong</td></tr>
+                        <tr><td>6</td><td>Does it serve reliable, validated transmission of data?</td><td>Likely BELONGS</td></tr>
+                    </tbody>
+                </table>
+
+                <h2>Realizations</h2>
+                <table>
+                    <thead>
+                        <tr><th>System</th><th>Role</th><th>Status</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><strong>TamaDB</strong></td><td>Stateful document cache with validation, versioning, and push delivery (all three bays)</td><td>Active development</td></tr>
+                        <tr><td><strong>PamaDB</strong></td><td>Publishing layer with representation adaptation (Dispatch Bay extension)</td><td>Planned</td></tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <section id="about-tamadb" class="page" hidden aria-labelledby="about-tamadb-heading">
+                <h1 id="about-tamadb-heading">About TamaDB</h1>
+
+                <h2>What Problem Does TamaDB Solve?</h2>
+                <p>In modern data architectures, systems need to exchange structured data between producers (sensors, applications, services) and consumers (dashboards, analytics, downstream services) with minimal latency and maximum reliability.</p>
+                <p>TamaDB is a <strong>document-centric transmission cache for smart-endpoints/dumb-pipes architectures</strong> — a purpose-built, high-performance intermediary that:</p>
+                <ul>
+                    <li><strong>Receives</strong> JSON documents from multiple producers via dedicated channels</li>
+                    <li><strong>Validates</strong> documents against registered JSON schemas</li>
+                    <li><strong>Stores temporarily</strong> with configurable time-to-live (TTL)</li>
+                    <li><strong>Pushes updates</strong> to registered consumers in real-time via webhooks</li>
+                </ul>
+                <p>TamaDB is <strong>not</strong> a general-purpose database. It is intentionally limited in scope: no complex queries, no joins, no aggregations. Its strength is speed, simplicity, and reliable data delivery.</p>
+
+                <h2>TamaDB vs Alternatives</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Alternative</th>
+                            <th>What TamaDB Does Differently</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Redis</strong></td>
+                            <td>Redis is a key-value store. TamaDB provides leaf-level versioning, merge semantics, schema validation, structured webhook delivery, and per-field history.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>MongoDB</strong></td>
+                            <td>MongoDB is a general-purpose document DB. TamaDB is a purpose-built transmission cache with per-leaf versioning, merge-only upsert (fields are never lost), and push-first webhook delivery. Schema-strict, short-lived, not designed for long-term storage or complex queries.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Kafka</strong></td>
+                            <td>Kafka is a distributed log delivering raw events in order. TamaDB delivers the current merged state of a document to subscribers. They're complementary, not competing.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>MQTT</strong></td>
+                            <td>MQTT delivers messages. TamaDB receives messages, validates against a schema, merges into a versioned document state, and delivers the merged result. TamaDB adds structure and state to raw message passing.</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h2>Architectural Position</h2>
+                <p>TamaDB and PamaDB together form the <strong>Transmission Layer</strong> — the intermediary between producers and consumers:</p>
+<img src="assets/architecture.svg" alt="Architecture diagram showing the Transmission Layer: Producers send data to TamaDB, which can deliver directly to Consumers. PamaDB extends TamaDB for transformed delivery to Consumers." style="width:100%; max-width:820px; height:auto;">
+                <p><strong>How the Transmission Layer works:</strong></p>
+                <ul>
+                    <li>Producers send data into the Transmission Layer via TamaDB (the entry point)</li>
+                    <li>TamaDB validates, versions, stores, and can deliver directly to consumers</li>
+                    <li>PamaDB extends TamaDB for delivery requirements outside TamaDB's scope (transformations, frozen documents, publishing)</li>
+                    <li>Consumers receive data from either TamaDB or PamaDB, depending on the delivery criteria</li>
+                    <li>Delivery criteria can be defined by either the producer or the consumer</li>
+                </ul>
+                <p><strong>Key principle: Dumb-pipe role.</strong> TamaDB never alters document content. It validates, stores, versions, and delivers — nothing more. PamaDB handles any transformation needs.</p>
+
+                <h2>Core Concepts</h2>
+
+                <h3>Document</h3>
+                <p>A JSON object stored in TamaDB. Documents are structured as trees of Bunches (objects) and Leaves (terminal values). Each leaf is independently versioned and has its own history.</p>
+
+                <h3>Document_Type</h3>
+                <p>The central organising concept. Every document belongs to exactly one Document_Type, which defines: the Master_Schema (what fields are valid and required), the document model (how strictly the schema is enforced), Channels (ingestion endpoints), TTL (document lifespan), and Subscriptions (notification targets).</p>
+
+                <h3>Channels</h3>
+                <p>An ingestion endpoint tied to a Document_Type. Producers push data to a channel URL. Each channel can have its own Channel_Schema (a subset of the Master_Schema), enrichment bindings (TamaDB injects fields the producer doesn't send), and status control (active, inactive, or blocked).</p>
+
+                <h3>Upsert &amp; Merge Semantics</h3>
+                <p>TamaDB has a single ingestion operation — <strong>upsert</strong>. There is no separate "create" vs "update". If the document doesn't exist, it's created. If it exists, incoming fields are merged into the stored document. Fields present in the payload update (previous value goes to history). Fields absent from the payload are preserved unchanged. No data is ever removed by a store operation.</p>
+
+                <h3>Subscriptions</h3>
+                <p>Consumers register webhooks (callback URLs) and receive real-time updates. Subscriptions can be at the Document_Type level (fires for any document of that type) or D-Id level (fires for a specific document only). Payload is snapshotted at the moment of update — delivery is decoupled from the store.</p>
+
+                <h3>Document TTL</h3>
+                <p>Every document has a time-to-live. TamaDB is a cache, not an archive. TTL hierarchy: Document &gt; Document_Type &gt; Instance (most specific wins). Expired documents are soft-deleted. TTL=0 means "process and deliver, but don't cache" (transient).</p>
+
+                <h3>Schema Validation</h3>
+                <p>TamaDB validates documents on ingestion using JSON Schema (Draft 7). Required fields must be present, field types must match, and unknown fields are rejected under the Document Closed Model (DCM). Validation happens on the Enriched_Document (payload + channel-supplied fields).</p>
+
+                <h2>Document Models</h2>
+                <p>TamaDB's document models map to the industry-standard distinction between <strong>defensive</strong> and <strong>offensive</strong> data strategies. Defensive strategies prioritise data integrity, compliance, and quality control. Offensive strategies prioritise flexibility, experimentation, and speed of onboarding new data sources.</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Model</th>
+                            <th>Increment</th>
+                            <th>Schema Required</th>
+                            <th>Unknown Fields</th>
+                            <th>Data Strategy</th>
+                            <th>Use Case</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>DCM</strong> (Document Closed Model)</td>
+                            <td>1</td>
+                            <td>Yes</td>
+                            <td>Rejected</td>
+                            <td>Defensive</td>
+                            <td>Strict data contracts, compliance, data quality</td>
+                        </tr>
+                        <tr>
+                            <td><strong>HDOM</strong> (Hybrid Document Open Model)</td>
+                            <td>2</td>
+                            <td>Yes</td>
+                            <td>Allowed as extensions</td>
+                            <td>Balanced</td>
+                            <td>Evolving schemas — defend core, enable exploration</td>
+                        </tr>
+                        <tr>
+                            <td><strong>DOM</strong> (Document Open Model)</td>
+                            <td>3</td>
+                            <td>Optional</td>
+                            <td>Allowed</td>
+                            <td>Offensive</td>
+                            <td>Flexible onboarding, experimentation, agility</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p>Regardless of model, the Semantic Preservation Principle applies: TamaDB never alters or creates meaning. The flexibility is in what it <em>accepts</em>, not in what it <em>does</em> to the data.</p>
+
+                <h2>End-to-End Data Flow</h2>
+<img src="assets/data-flow.svg" alt="Sequence diagram showing the end-to-end data flow: Producer sends POST to TamaDB, which processes through 9 pipeline steps (parse, enrich, extract D-Id, validate, merge, version, TTL, match subscriptions, snapshot), returns 201 to Producer, then delivers webhook POST to Consumer who responds 200 OK." style="width:100%; max-width:820px; height:auto;">
+
+                <h2>Increment 1 — What's Delivered</h2>
+                <h3>Capabilities</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Area</th>
+                            <th>What's Included</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Ingestion</td><td>REST endpoint per Document_Type and per channel, upsert-merge semantics</td></tr>
+                        <tr><td>Validation</td><td>DCM schema enforcement, required fields, type checking, conditional rules</td></tr>
+                        <tr><td>Identity</td><td>D-Id extraction from document fields (identityKind annotations), single and composed keys</td></tr>
+                        <tr><td>Versioning</td><td>Per-leaf history with configurable depth, optimistic concurrency control</td></tr>
+                        <tr><td>Channels</td><td>Registration, status management (active/inactive/blocked), schema assignment</td></tr>
+                        <tr><td>Enrichment</td><td>Static field injection per channel, conflict detection + policy resolution</td></tr>
+                        <tr><td>Delivery</td><td>Webhook subscriptions (Document_Type-level and D-Id-level), envelope/raw format</td></tr>
+                        <tr><td>TTL</td><td>Three-scope hierarchy, background sweep, on-access check, TTL=0 transient processing</td></tr>
+                        <tr><td>Quarantine</td><td>Rejected payload storage with policy control, read-only inspection API</td></tr>
+                        <tr><td>Storage</td><td>Memory, disk, hybrid, and auto strategies with runtime switching and drain</td></tr>
+                        <tr><td>Persistence</td><td>Write-through state persistence — schemas, Document_Types, channels, subscriptions, enrichment, TTL, quarantine, and config survive restarts</td></tr>
+                        <tr><td>Observability</td><td>Structured JSON logging, runtime-configurable levels and destination</td></tr>
+                        <tr><td>Admin</td><td>Platform-independent graceful shutdown endpoint, health check</td></tr>
+                        <tr><td>API</td><td>Full REST/HTTP API (~46 endpoints) for all operations and configuration</td></tr>
+                    </tbody>
+                </table>
+
+                <h3>Technology Stack</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Layer</th>
+                            <th>Technology</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Runtime</td><td>Node.js 22 (ESM)</td></tr>
+                        <tr><td>Language</td><td>TypeScript 6 (strict mode)</td></tr>
+                        <tr><td>HTTP Framework</td><td>Fastify 5</td></tr>
+                        <tr><td>Schema Validation</td><td>Ajv 8 (JSON Schema Draft 7)</td></tr>
+                        <tr><td>Logging</td><td>Pino 10 (structured JSON)</td></tr>
+                        <tr><td>Testing</td><td>Vitest 4 + fast-check 4 (property-based)</td></tr>
+                    </tbody>
+                </table>
+
+                <h3>Why TypeScript for Increment 1?</h3>
+                <p>TypeScript was chosen deliberately for this phase — not as the final deployment language, but as the fastest path to <strong>proving the architecture works</strong>.</p>
+                <ul>
+                    <li><strong>Rapid concept validation.</strong> The goal of Increment 1 is to prove the pipeline model, merge semantics, schema validation, and API contract are correct. TypeScript's expressiveness and fast iteration cycle (no compile-link-run delays) made this possible rapidly.</li>
+                    <li><strong>Language-agnostic design.</strong> The architecture is defined at the interface/contract level. Component interfaces, data flow, and the 9-step processing pipeline are not coupled to TypeScript — they translate directly to traits (Rust), interfaces (Java/Go), or protocols (Swift).</li>
+                    <li><strong>Living reference implementation.</strong> The TypeScript codebase serves as a verifiable proof that the design is complete. With 467+ tests (including property-based tests), it validates correctness properties that any future implementation must also satisfy.</li>
+                    <li><strong>Planned Rust rewrite for production.</strong> For quasi-production deployment (running 24/7 parallel to production systems), a Rust rewrite is planned. Rust eliminates Garbage Collection pauses, guarantees predictable latency, prevents memory leaks via ownership, and produces a single static binary with no runtime dependencies.</li>
+                </ul>
+                <p>In short: TypeScript proves the <em>what</em> and <em>how</em>. Rust will deliver the <em>at-scale</em> and <em>in-production</em>.</p>
+
+                <h2>Roadmap</h2>
+                <h3>Increment 2</h3>
+                <ul>
+                    <li>HDOM (Hybrid Document Open Model) — schema validation for known fields, extensions allowed</li>
+                    <li>Discrete leaf updates — update individual fields by path without sending full document</li>
+                    <li>Foreign D-Ids (full) — dynamic/rule-based identity derivation</li>
+                    <li>Library Sections — category-based document grouping</li>
+                    <li>Subscription updates — in-place modification of active subscriptions</li>
+                    <li>Schema adoption — propagate mode auto-adopts latest Retrieval_Schema version</li>
+                </ul>
+                <h3>Increment 3</h3>
+                <ul>
+                    <li>DOM (Document Open Model) — no schema enforcement, fully dynamic</li>
+                    <li>Alien D-Ids — documents with no identity (immutable, non-updatable one-shots)</li>
+                    <li>Element-level arrays — address individual array elements (sparse transmission)</li>
+                </ul>
+                <h3>Future Vision</h3>
+                <ul>
+                    <li>PamaDB — data publishing layer (transformations, frozen documents, hard subscriptions)</li>
+                    <li>Sanitation — validate stored documents against template schemas</li>
+                    <li>Multi-protocol — gRPC, WebSocket ingestion alongside REST</li>
+                    <li>Idempotent updates — detect and skip duplicate payloads</li>
+                    <li>Storage segmentation — per-Document_Type data isolation</li>
+                </ul>
+            </section>
+
+            <section id="user-manual" class="page" hidden aria-labelledby="user-manual-heading">
+                <h1 id="user-manual-heading">TamaDB User Manual</h1>
+
+                <h2>Getting Started</h2>
+
+                <h3>Prerequisites</h3>
+                <ul>
+                    <li>Node.js 22 or later</li>
+                    <li>npm (comes with Node.js)</li>
+                </ul>
+
+                <h3>Installation &amp; Startup</h3>
+<pre><code># Clone the repository
+git clone https://github.com/teneriscc/TamaDB.git
+cd TamaDB
+
+# Install dependencies
+npm ci
+
+# Build
+npm run build
+
+# Start the server
+npm start
+# Or for development (auto-reload):
+npm run dev</code></pre>
+
+                <h3>Run with Docker</h3>
+                <p>A prebuilt, multi-architecture image (<code>linux/amd64</code> and <code>linux/arm64</code>) is published on Docker Hub, so you can run TamaDB without installing Node.js:</p>
+<pre><code>docker run --rm -p 3000:3000 teneriscc/tamadb:latest</code></pre>
+                <p>For persistent volumes, Docker Compose, and the full environment-variable reference, see the <a href="https://hub.docker.com/r/teneriscc/tamadb">Docker Hub overview</a>.</p>
+
+                <p>TamaDB starts on port 3000 by default. Verify with:</p>
+<pre><code>curl http://localhost:3000/health</code></pre>
+                <p>Response:</p>
+<pre><code>{
+  "status": "ok",
+  "version": "0.5.0",
+  "commit": "0b8032935370",
+  "storageMode": "auto",
+  "logLevel": "debug"
+}</code></pre>
+
+                <h3>Configuration (Environment Variables)</h3>
+                <table>
+                    <thead>
+                        <tr><th>Variable</th><th>Default</th><th>Description</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><code>TAMADB_PORT</code></td><td>3000</td><td>HTTP port</td></tr>
+                        <tr><td><code>TAMADB_HOST</code></td><td>0.0.0.0</td><td>Bind address</td></tr>
+                        <tr><td><code>TAMADB_LOG_LEVEL</code></td><td>debug</td><td>Log level (debug/info/warn/error/silent)</td></tr>
+                        <tr><td><code>TAMADB_STORAGE_MODE</code></td><td>auto</td><td>Storage strategy (auto/memory/disk/hybrid)</td></tr>
+                    </tbody>
+                </table>
+
+                <h2>Step 1: Register a Schema</h2>
+                <p>Before storing documents, define the structure they must follow.</p>
+<pre><code>curl -X POST http://localhost:3000/api/v1/schemas \
+  -H "Content-Type: application/json" \
+  -d '{
+    "ref": "temperature-sensor-v1",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "sensorId": { "type": "string", "identityKind": "primary-key" },
+        "location": { "type": "string" },
+        "temperature": { "type": "number" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["sensorId", "location", "temperature"]
+    }
+  }'</code></pre>
+                <p>Response:</p>
+<pre><code>{ "ref": "temperature-sensor-v1", "version": 1 }</code></pre>
+                <p><strong>Key points:</strong></p>
+                <ul>
+                    <li><code>identityKind: "primary-key"</code> tells TamaDB which field(s) form the document's identity</li>
+                    <li><code>required</code> fields must be present in every ingested document (or supplied by enrichment)</li>
+                </ul>
+
+                <h3>Retrieve a schema</h3>
+<pre><code>curl http://localhost:3000/api/v1/schemas/temperature-sensor-v1</code></pre>
+
+                <h3>Update a schema</h3>
+<pre><code>curl -X PUT http://localhost:3000/api/v1/schemas/temperature-sensor-v1 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "sensorId": { "type": "string", "identityKind": "primary-key" },
+        "location": { "type": "string" },
+        "temperature": { "type": "number" },
+        "humidity": { "type": "number" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["sensorId", "location", "temperature"]
+    }
+  }'</code></pre>
+
+                <h3>View schema version history</h3>
+<pre><code>curl http://localhost:3000/api/v1/schemas/temperature-sensor-v1/versions</code></pre>
+
+                <h3>Decommission a schema</h3>
+<pre><code>curl -X POST http://localhost:3000/api/v1/schemas/temperature-sensor-v1/decommission</code></pre>
+
+                <h3>Reactivate a schema</h3>
+<pre><code>curl -X POST http://localhost:3000/api/v1/schemas/temperature-sensor-v1/reactivate</code></pre>
+
+                <h2>Step 2: Register a Document_Type</h2>
+                <p>Group documents under a named type with its Master_Schema.</p>
+<pre><code>curl -X POST http://localhost:3000/api/v1/config/document-types \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "temperature-readings",
+    "masterSchema": "temperature-sensor-v1",
+    "model": "closed",
+    "ttl": 3600
+  }'</code></pre>
+                <p>Response:</p>
+<pre><code>{
+  "name": "temperature-readings",
+  "masterSchema": "temperature-sensor-v1",
+  "model": "closed",
+  "ttl": 3600,
+  "channels": [],
+  "createdAt": "2026-07-17T10:00:00.000Z",
+  "updatedAt": "2026-07-17T10:00:00.000Z"
+}</code></pre>
+                <p><strong>Parameters:</strong></p>
+                <ul>
+                    <li><code>model: "closed"</code> — strict validation, no unknown fields allowed</li>
+                    <li><code>ttl: 3600</code> — documents expire after 1 hour</li>
+                </ul>
+
+                <h3>Get a Document_Type configuration</h3>
+<pre><code>curl http://localhost:3000/api/v1/config/document-types/temperature-readings</code></pre>
+
+                <h3>Set per-Document_Type TTL</h3>
+<pre><code>curl -X PUT http://localhost:3000/api/v1/config/document-types/temperature-readings/ttl \
+  -H "Content-Type: application/json" \
+  -d '{ "ttl": 7200 }'</code></pre>
+
+                <h3>Delete a Document_Type</h3>
+                <p>Requires no documents of that type exist (including soft-deleted):</p>
+<pre><code>curl -X DELETE http://localhost:3000/api/v1/config/document-types/temperature-readings</code></pre>
+
+                <h2>Step 3: Register a Channel (Optional)</h2>
+                <p>Channels give producers their own ingestion endpoint, optionally with enrichment.</p>
+<pre><code>curl -X POST http://localhost:3000/api/v1/config/channels \
+  -H "Content-Type: application/json" \
+  -d '{
+    "channelId": "garage-sensor",
+    "documentType": "temperature-readings"
+  }'</code></pre>
+
+                <h3>Add Enrichment Bindings</h3>
+                <p>Enrichment injects fields the producer doesn't need to send:</p>
+<pre><code>curl -X PUT http://localhost:3000/api/v1/config/channels/garage-sensor/enrichment \
+  -H "Content-Type: application/json" \
+  -d '{
+    "bindings": [
+      { "fieldPath": "location", "staticValue": "Garage" },
+      { "fieldPath": "sensorId", "staticValue": "GARAGE-TEMP-01" }
+    ]
+  }'</code></pre>
+                <p>Now the producer only needs to send <code>{"temperature": 22.5}</code> — TamaDB fills in the rest.</p>
+
+                <h3>Get enrichment bindings</h3>
+<pre><code>curl http://localhost:3000/api/v1/config/channels/garage-sensor/enrichment</code></pre>
+
+                <h3>Remove enrichment bindings</h3>
+<pre><code>curl -X DELETE http://localhost:3000/api/v1/config/channels/garage-sensor/enrichment</code></pre>
+
+                <h3>Update a channel</h3>
+<pre><code>curl -X PUT http://localhost:3000/api/v1/config/channels/garage-sensor \
+  -H "Content-Type: application/json" \
+  -d '{ "channelSchema": "temperature-sensor-v1" }'</code></pre>
+
+                <h3>Deactivate a channel</h3>
+<pre><code>curl -X POST http://localhost:3000/api/v1/config/channels/garage-sensor/deactivate</code></pre>
+
+                <h3>Delete a channel</h3>
+<pre><code>curl -X DELETE http://localhost:3000/api/v1/config/channels/garage-sensor</code></pre>
+
+                <h2>Step 4: Ingest Documents</h2>
+
+                <h3>Direct ingestion (Document_Type-level)</h3>
+                <p>The request body is the <strong>bare JSON document</strong> — no wrapper. Per-request instructions (version, TTL, expiry, schema) travel as reserved <code>TamaDB-*</code> headers, not body fields (see below).</p>
+<pre><code>curl -X POST http://localhost:3000/api/v1/ingest/temperature-readings \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sensorId": "LIVING-ROOM-01",
+    "location": "Living Room",
+    "temperature": 21.5,
+    "timestamp": "2026-07-17T10:05:00Z"
+  }'</code></pre>
+                <p>Response (201 Created):</p>
+<pre><code>{
+  "dId": "LIVING-ROOM-01",
+  "versionNo": 1,
+  "created": true
+}</code></pre>
+
+                <h3>Channel ingestion (with enrichment)</h3>
+<pre><code>curl -X POST http://localhost:3000/api/v1/ingest/temperature-readings/garage-sensor \
+  -H "Content-Type: application/json" \
+  -d '{
+    "temperature": 18.2,
+    "timestamp": "2026-07-17T10:06:00Z"
+  }'</code></pre>
+                <p>Response (201 Created):</p>
+<pre><code>{
+  "dId": "GARAGE-TEMP-01",
+  "versionNo": 1,
+  "created": true
+}</code></pre>
+                <p>TamaDB enriched the document with <code>sensorId</code> and <code>location</code> from the channel bindings before storing.</p>
+
+                <h3>Update an existing document (upsert)</h3>
+                <p>Send the same sensorId again — TamaDB merges the new temperature into the existing document:</p>
+<pre><code>curl -X POST http://localhost:3000/api/v1/ingest/temperature-readings/garage-sensor \
+  -H "Content-Type: application/json" \
+  -d '{
+    "temperature": 19.1,
+    "timestamp": "2026-07-17T10:10:00Z"
+  }'</code></pre>
+                <p>Response (200 OK — updated, not created):</p>
+<pre><code>{
+  "dId": "GARAGE-TEMP-01",
+  "versionNo": 2,
+  "created": false
+}</code></pre>
+
+                <h3>Per-request instructions: <code>TamaDB-*</code> Control_Headers</h3>
+                <p>Per-request instructions are optional HTTP headers in the reserved <code>TamaDB-*</code> namespace; the body stays a pure document.</p>
+                <table>
+                    <thead>
+                        <tr><th>Header</th><th>Value</th><th>Purpose</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><code>TamaDB-Version</code></td><td>positive integer (≥ 1)</td><td>Optimistic concurrency — write only if the stored version matches (see Step 8). Omit for a blind write.</td></tr>
+                        <tr><td><code>TamaDB-TTL</code></td><td>integer seconds (≥ 0), or <code>infinite</code></td><td>Document-level TTL. <code>0</code> = process-and-forward without caching.</td></tr>
+                        <tr><td><code>TamaDB-Expire-At</code></td><td>ISO-8601 timestamp (explicit timezone)</td><td>Expire-at-Point-in-Time — a hard delivery deadline regardless of TTL.</td></tr>
+                        <tr><td><code>TamaDB-Schema</code></td><td>schema ref</td><td>Explicit Storage_Schema override (takes precedence over the URL-derived schema).</td></tr>
+                    </tbody>
+                </table>
+                <p>Example — the same ingest with a one-hour TTL and an explicit schema:</p>
+<pre><code>curl -X POST http://localhost:3000/api/v1/ingest/temperature-readings/garage-sensor \
+  -H "Content-Type: application/json" \
+  -H "TamaDB-TTL: 3600" \
+  -H "TamaDB-Schema: temperature-sensor-v1" \
+  -d '{
+    "temperature": 19.1,
+    "timestamp": "2026-07-17T10:10:00Z"
+  }'</code></pre>
+                <p>If a Control_Header is present but invalid (a non-integer TTL, a <code>TamaDB-Version</code> below 1, a timezone-less timestamp), TamaDB rejects the whole request rather than guessing:</p>
+<pre><code>{
+  "code": "INVALID_CONTROL_HEADER",
+  "message": "Invalid value for header TamaDB-Version: expected a positive integer (&gt;= 1)"
+}</code></pre>
+
+                <h2>Step 5: Retrieve Documents</h2>
+
+                <h3>List all Document_Types</h3>
+<pre><code>curl http://localhost:3000/api/v1/config/document-types</code></pre>
+
+                <h3>List all documents in a Document_Type</h3>
+<pre><code># Use glob wildcard * to match all D-Ids
+curl http://localhost:3000/api/v1/documents/temperature-readings/*</code></pre>
+                <p>Response:</p>
+<pre><code>{
+  "matches": [
+    { "sensorId": "LIVING-ROOM-01", "location": "Living Room", "temperature": 21.5, ... },
+    { "sensorId": "GARAGE-TEMP-01", "location": "Garage", "temperature": 19.1, ... }
+  ],
+  "count": 2
+}</code></pre>
+
+                <h3>Full document by D-Id</h3>
+<pre><code>curl http://localhost:3000/api/v1/documents/temperature-readings/GARAGE-TEMP-01</code></pre>
+                <p>Response:</p>
+<pre><code>{
+  "sensorId": "GARAGE-TEMP-01",
+  "location": "Garage",
+  "temperature": 19.1,
+  "timestamp": "2026-07-17T10:10:00Z"
+}</code></pre>
+
+                <h3>Retrieve a specific field</h3>
+<pre><code>curl "http://localhost:3000/api/v1/documents/temperature-readings/GARAGE-TEMP-01?path=temperature"</code></pre>
+                <p>Response:</p>
+<pre><code>{ "_value": 19.1 }</code></pre>
+
+                <h3>Search by value</h3>
+<pre><code>curl -X POST http://localhost:3000/api/v1/documents/temperature-readings/search \
+  -H "Content-Type: application/json" \
+  -d '{ "field": "location", "value": "Garage" }'</code></pre>
+                <p>Response:</p>
+<pre><code>{
+  "matches": [
+    { "sensorId": "GARAGE-TEMP-01", "location": "Garage", "temperature": 19.1, "timestamp": "2026-07-17T10:10:00Z" }
+  ],
+  "count": 1
+}</code></pre>
+
+                <h3>Glob pattern matching</h3>
+<pre><code># All sensors starting with "GARAGE"
+curl http://localhost:3000/api/v1/documents/temperature-readings/GARAGE-*</code></pre>
+
+                <h2>Step 6: Subscribe to Updates</h2>
+                <p>Register a webhook to receive updates in real-time:</p>
+<pre><code>curl -X POST http://localhost:3000/api/v1/subscriptions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "scope": "document_type",
+    "documentType": "temperature-readings",
+    "callbackUrl": "https://my-dashboard.example.com/webhook/temperatures",
+    "options": {
+      "deliveryMode": "retry",
+      "payloadFormat": "envelope"
+    }
+  }'</code></pre>
+                <p>Response (201):</p>
+<pre><code>{
+  "id": "sub-abc123-0001",
+  "scope": "document_type",
+  "documentType": "temperature-readings",
+  "callbackUrl": "https://my-dashboard.example.com/webhook/temperatures",
+  "options": { "deliveryMode": "retry", "payloadFormat": "envelope" },
+  "active": true,
+  "createdAt": "2026-07-17T10:15:00Z"
+}</code></pre>
+                <p>Every time a temperature reading is stored or updated, TamaDB POSTs to your callback:</p>
+<pre><code>{
+  "subscriptionId": "sub-abc123-0001",
+  "dId": "GARAGE-TEMP-01",
+  "documentType": "temperature-readings",
+  "document": {
+    "sensorId": "GARAGE-TEMP-01",
+    "location": "Garage",
+    "temperature": 19.1
+  },
+  "timestamp": "2026-07-17T10:10:00Z"
+}</code></pre>
+
+                <h3>Subscribe to a specific document</h3>
+<pre><code>curl -X POST http://localhost:3000/api/v1/subscriptions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "scope": "document_id",
+    "documentType": "temperature-readings",
+    "dId": "LIVING-ROOM-01",
+    "callbackUrl": "https://alerts.example.com/living-room"
+  }'</code></pre>
+
+                <h3>List subscriptions</h3>
+<pre><code># All subscriptions for a Document_Type
+curl http://localhost:3000/api/v1/document-types/temperature-readings/subscriptions
+
+# Subscriptions for a specific document
+curl http://localhost:3000/api/v1/documents/temperature-readings/GARAGE-TEMP-01/subscriptions</code></pre>
+
+                <h3>Cancel a subscription</h3>
+<pre><code>curl -X DELETE http://localhost:3000/api/v1/subscriptions/sub-abc123-0001</code></pre>
+
+                <h2>Step 7: Delete a Document</h2>
+                <p>Soft-delete permanently excludes the document from retrieval and delivery:</p>
+<pre><code>curl -X DELETE http://localhost:3000/api/v1/documents/temperature-readings/LIVING-ROOM-01</code></pre>
+                <p>Response:</p>
+<pre><code>{ "deleted": true }</code></pre>
+                <p>The document's data and history are preserved in storage for audit, but it will never be served again.</p>
+
+                <h2>Step 8: Optimistic Concurrency</h2>
+                <p>Prevent accidental overwrites by supplying the expected version as the <code>TamaDB-Version</code> header (the body stays a bare document):</p>
+<pre><code>curl -X POST http://localhost:3000/api/v1/ingest/temperature-readings \
+  -H "Content-Type: application/json" \
+  -H "TamaDB-Version: 2" \
+  -d '{ "sensorId": "LIVING-ROOM-01", "location": "Living Room", "temperature": 23 }'</code></pre>
+                <p>If the document's current version is not 2, TamaDB rejects with:</p>
+<pre><code>{
+  "code": "VERSION_CONFLICT",
+  "message": "Version conflict: expected 2, current is 3"
+}</code></pre>
+                <p>Omit the <code>TamaDB-Version</code> header for a "blind write" (last-write-wins).</p>
+
+                <h2>Configuration at Runtime</h2>
+                <p>All configuration is changeable without restart via the API.</p>
+
+                <table>
+                    <thead>
+                        <tr><th>Category</th><th>Valid Values</th><th>Default</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Log Level</td><td><code>debug</code>, <code>info</code>, <code>warn</code>, <code>error</code>, <code>silent</code></td><td><code>debug</code></td></tr>
+                        <tr><td>Log Destination</td><td><code>stdout</code>, <code>file</code>, <code>none</code></td><td><code>stdout</code></td></tr>
+                        <tr><td>Storage Strategy</td><td><code>auto</code>, <code>memory</code>, <code>disk</code>, <code>hybrid</code></td><td><code>auto</code></td></tr>
+                        <tr><td>TTL (Instance-level)</td><td>Integer (seconds), <code>0</code> = transient, or <code>"infinite"</code></td><td><code>3600</code></td></tr>
+                        <tr><td>Quarantine Policy</td><td><code>off</code>, <code>data-errors-only</code>, <code>all-rejections</code></td><td><code>data-errors-only</code></td></tr>
+                        <tr><td>Enrichment Precedence</td><td><code>environment-over-content</code>, <code>content-over-environment</code></td><td><code>environment-over-content</code></td></tr>
+                        <tr><td>Enrichment Conflict Resolution</td><td><code>accept-and-warn</code>, <code>discard-and-error</code></td><td><code>accept-and-warn</code></td></tr>
+                    </tbody>
+                </table>
+
+                <h3>Log Level</h3>
+<pre><code># Check current
+curl http://localhost:3000/api/v1/config/log-level
+
+# Change to warn
+curl -X PUT http://localhost:3000/api/v1/config/log-level \
+  -H "Content-Type: application/json" \
+  -d '{ "level": "warn" }'</code></pre>
+
+                <h3>Log Destination</h3>
+<pre><code># Check current
+curl http://localhost:3000/api/v1/config/log-destination
+
+# Switch to file
+curl -X PUT http://localhost:3000/api/v1/config/log-destination \
+  -H "Content-Type: application/json" \
+  -d '{ "destination": "file", "filePath": "./tamadb.log" }'
+
+# Switch back to stdout
+curl -X PUT http://localhost:3000/api/v1/config/log-destination \
+  -H "Content-Type: application/json" \
+  -d '{ "destination": "stdout" }'
+
+# Disable logging
+curl -X PUT http://localhost:3000/api/v1/config/log-destination \
+  -H "Content-Type: application/json" \
+  -d '{ "destination": "none" }'</code></pre>
+
+                <h3>Document TTL (Instance-level)</h3>
+<pre><code># Check current
+curl http://localhost:3000/api/v1/config/ttl/instance
+
+# Change to 2 hours (7200 seconds)
+curl -X PUT http://localhost:3000/api/v1/config/ttl/instance \
+  -H "Content-Type: application/json" \
+  -d '{ "ttl": 7200 }'</code></pre>
+
+                <h3>Document TTL (Per-document)</h3>
+<pre><code># Set TTL for a specific document (overrides Document_Type and instance TTL)
+curl -X PUT http://localhost:3000/api/v1/documents/temperature-readings/GARAGE-TEMP-01/ttl \
+  -H "Content-Type: application/json" \
+  -d '{ "ttl": 1800 }'</code></pre>
+
+                <h3>TTL Sweep Interval</h3>
+                <p>Controls how frequently TamaDB checks for expired documents (in milliseconds):</p>
+<pre><code># Change sweep interval to 30 seconds
+curl -X PUT http://localhost:3000/api/v1/config/ttl/sweep-interval \
+  -H "Content-Type: application/json" \
+  -d '{ "interval": 30000 }'</code></pre>
+
+                <h3>Storage Strategy</h3>
+<pre><code># Check current
+curl http://localhost:3000/api/v1/config/storage-strategy
+
+# Change to memory
+curl -X PUT http://localhost:3000/api/v1/config/storage-strategy \
+  -H "Content-Type: application/json" \
+  -d '{ "mode": "memory" }'</code></pre>
+
+                <h3>Drain Memory to Disk</h3>
+                <p>Flushes all in-memory documents to disk storage. Useful before stopping TamaDB or when switching away from auto/hybrid/memory mode. No-op in <code>disk</code> mode. TamaDB also automatically drains on graceful shutdown (Ctrl+C / SIGTERM).</p>
+<pre><code>curl -X POST http://localhost:3000/api/v1/config/storage/drain</code></pre>
+                <p>Response:</p>
+<pre><code>{ "drained": true, "documentsWritten": 42, "mode": "auto" }</code></pre>
+
+                <h3>Quarantine Policy</h3>
+<pre><code># Check current
+curl http://localhost:3000/api/v1/config/quarantine-policy
+
+# Change to all-rejections
+curl -X PUT http://localhost:3000/api/v1/config/quarantine-policy \
+  -H "Content-Type: application/json" \
+  -d '{ "policy": "all-rejections" }'</code></pre>
+
+                <h3>Enrichment Policies</h3>
+<pre><code># Check current
+curl http://localhost:3000/api/v1/config/enrichment-policies
+
+# Change policies
+curl -X PUT http://localhost:3000/api/v1/config/enrichment-policies \
+  -H "Content-Type: application/json" \
+  -d '{
+    "precedence": "environment-over-content",
+    "conflictResolution": "accept-and-warn"
+  }'</code></pre>
+
+                <h2>Persistence &amp; Durability</h2>
+                <p>TamaDB persists all state to the <code>.tamadb-data/</code> directory so it resumes exactly where it left off after a restart.</p>
+                <h3>What Survives a Restart</h3>
+                <table>
+                    <thead>
+                        <tr><th>State</th><th>Persisted?</th><th>How</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Schemas (+ version history)</td><td>Yes</td><td>Write-through on every mutation</td></tr>
+                        <tr><td>Document_Types</td><td>Yes</td><td>Write-through on every mutation</td></tr>
+                        <tr><td>Channels (+ status)</td><td>Yes</td><td>Write-through on every mutation</td></tr>
+                        <tr><td>Subscriptions</td><td>Yes</td><td>Write-through on every mutation</td></tr>
+                        <tr><td>Enrichment bindings &amp; policies</td><td>Yes</td><td>Write-through on every mutation</td></tr>
+                        <tr><td>TTL settings</td><td>Yes</td><td>Write-through on every mutation</td></tr>
+                        <tr><td>Quarantine entries</td><td>Yes</td><td>Write-through on every mutation</td></tr>
+                        <tr><td>Runtime config</td><td>Yes</td><td>Write-through on every mutation</td></tr>
+                        <tr><td>Documents</td><td>Depends on storage strategy</td><td>See below</td></tr>
+                    </tbody>
+                </table>
+
+                <h3>Document Durability by Storage Strategy</h3>
+                <table>
+                    <thead>
+                        <tr><th>Strategy</th><th>Document Persistence</th><th>Trade-off</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><code>disk</code></td><td>Written to disk immediately on ingest</td><td>Safest. Slower writes.</td></tr>
+                        <tr><td><code>hybrid</code></td><td>Written to both memory and disk</td><td>Fast reads + durable</td></tr>
+                        <tr><td><code>auto</code> (default)</td><td>Per-operation: uses disk when memory constrained</td><td>Balanced</td></tr>
+                        <tr><td><code>memory</code></td><td>No disk writes. All state lost on restart.</td><td>Fastest. Ephemeral (testing/CI)</td></tr>
+                    </tbody>
+                </table>
+                <p><strong>To start fresh:</strong> delete the <code>.tamadb-data/</code> directory and restart.</p>
+
+                <h3>Graceful Shutdown</h3>
+                <p>TamaDB provides a platform-independent shutdown endpoint:</p>
+<pre><code>curl -X POST http://localhost:3000/api/v1/admin/shutdown</code></pre>
+                <p>Response:</p>
+<pre><code>{ "status": "shutting-down" }</code></pre>
+                <p>This drains all in-memory documents to disk, persists all configuration state, closes the HTTP server, and exits cleanly. Also triggered by Ctrl+C / SIGTERM on Linux/macOS.</p>
+
+                <h2>Troubleshooting</h2>
+
+                <h3>Reading Logs</h3>
+                <p>TamaDB outputs structured JSON logs to stdout. Each log entry includes:</p>
+                <ul>
+                    <li><code>level</code>: debug, info, warn, error</li>
+                    <li><code>time</code>: ISO timestamp</li>
+                    <li><code>msg</code>: human-readable description</li>
+                    <li>Contextual fields: dId, documentType, channelId, error details</li>
+                </ul>
+                <p>Example log entries:</p>
+<pre><code>{"level":"info","time":"2026-07-17T10:05:00Z","msg":"Document stored","documentType":"temperature-readings","dId":"LIVING-ROOM-01","versionNo":1}
+{"level":"warn","time":"2026-07-17T10:06:00Z","msg":"Enrichment conflict resolved","fieldPath":"location","winner":"environment"}
+{"level":"error","time":"2026-07-17T10:07:00Z","msg":"Schema validation failed","documentType":"temperature-readings","errors":"Field 'temperature' expected type number"}</code></pre>
+
+                <h3>Inspecting Quarantined Payloads</h3>
+                <p>When a payload is rejected and the quarantine policy permits it, TamaDB stores the original payload for inspection.</p>
+                <p>Check the error response for the quarantine reference:</p>
+<pre><code>{
+  "code": "SCHEMA_VALIDATION_FAILED",
+  "message": "Field 'temperature' expected type number, got string",
+  "quarantineRef": "qr-m1abc-0001"
+}</code></pre>
+                <p>Retrieve the quarantined payload:</p>
+<pre><code>curl http://localhost:3000/api/v1/quarantine/qr-m1abc-0001</code></pre>
+                <p>List all quarantined entries:</p>
+<pre><code># All entries
+curl http://localhost:3000/api/v1/quarantine
+
+# Filter by type
+curl "http://localhost:3000/api/v1/quarantine?rejectionType=parse-error"
+
+# Paginate
+curl "http://localhost:3000/api/v1/quarantine?limit=10&amp;offset=0"</code></pre>
+
+                <h3>Common Error Codes</h3>
+                <table>
+                    <thead>
+                        <tr><th>Code</th><th>HTTP</th><th>Meaning</th><th>What to do</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><code>PARSE_ERROR</code></td><td>400</td><td>Payload is not valid JSON</td><td>Fix the producer's serialization</td></tr>
+                        <tr><td><code>SCHEMA_VALIDATION_FAILED</code></td><td>422</td><td>Document doesn't match schema</td><td>Check required fields, types, extra fields</td></tr>
+                        <tr><td><code>DOCUMENT_TYPE_NOT_FOUND</code></td><td>404</td><td>No such Document_Type registered</td><td>Register it first via <code>/config/document-types</code></td></tr>
+                        <tr><td><code>CHANNEL_NOT_FOUND</code></td><td>404</td><td>Channel doesn't exist</td><td>Register it via <code>/config/channels</code></td></tr>
+                        <tr><td><code>CHANNEL_INACTIVE</code></td><td>403</td><td>Channel suspended by operator</td><td>Activate it: <code>POST /config/channels/{id}/activate</code></td></tr>
+                        <tr><td><code>CHANNEL_BLOCKED</code></td><td>403</td><td>Channel blocked due to schema conflict</td><td>Fix the Channel_Schema to be compatible with Master</td></tr>
+                        <tr><td><code>VERSION_CONFLICT</code></td><td>409</td><td>Optimistic concurrency mismatch</td><td>Re-read the document's current version and retry</td></tr>
+                        <tr><td><code>ENRICHMENT_CONFLICT</code></td><td>409</td><td>Payload conflicts with enrichment bindings</td><td>Check enrichment policy or adjust bindings</td></tr>
+                        <tr><td><code>DOCUMENT_NOT_FOUND</code></td><td>404</td><td>Document doesn't exist or is soft-deleted</td><td>Check the <code>reason</code> field for details</td></tr>
+                    </tbody>
+                </table>
+
+                <h3>Channel Status Issues</h3>
+                <p>If a channel stops accepting ingestion:</p>
+<pre><code># Check channel status
+curl http://localhost:3000/api/v1/config/channels?documentType=temperature-readings</code></pre>
+                <p>Look at the <code>status</code> field:</p>
+                <ul>
+                    <li><code>"active"</code> — accepting ingestion (normal)</li>
+                    <li><code>"inactive"</code> — operator-suspended. Reactivate: <code>POST /config/channels/{id}/activate</code></li>
+                    <li><code>"blocked"</code> — schema conflict. Fix the Channel_Schema, then activation becomes possible</li>
+                </ul>
+
+                <h2>Composed D-Ids (Multi-Field Identity)</h2>
+                <p>When a schema has multiple identity fields (e.g., customer + order), D-Ids are composed:</p>
+<pre><code>{
+  "properties": {
+    "customerId": { "type": "string", "identityKind": "parent-key" },
+    "orderId": { "type": "string", "identityKind": "primary-key" }
+  }
+}</code></pre>
+                <p>In URLs, composed D-Ids use <code>:</code> as delimiter:</p>
+<pre><code>curl http://localhost:3000/api/v1/documents/orders/customer-A:order-123</code></pre>
+                <p>In request bodies (store response), they're arrays:</p>
+<pre><code>{ "dId": ["customer-A", "order-123"] }</code></pre>
+
+                <h2>Quick Reference: Key Endpoints</h2>
+                <table>
+                    <thead>
+                        <tr><th>Operation</th><th>Method</th><th>URL</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Ingest (document_type)</td><td>POST</td><td><code>/api/v1/ingest/{documentType}</code></td></tr>
+                        <tr><td>Ingest (channel)</td><td>POST</td><td><code>/api/v1/ingest/{documentType}/{channelId}</code></td></tr>
+                        <tr><td>Retrieve document</td><td>GET</td><td><code>/api/v1/documents/{documentType}/{dId}</code></td></tr>
+                        <tr><td>Delete document</td><td>DELETE</td><td><code>/api/v1/documents/{documentType}/{dId}</code></td></tr>
+                        <tr><td>Search</td><td>POST</td><td><code>/api/v1/documents/{documentType}/search</code></td></tr>
+                        <tr><td>Subscribe</td><td>POST</td><td><code>/api/v1/subscriptions</code></td></tr>
+                        <tr><td>Cancel subscription</td><td>DELETE</td><td><code>/api/v1/subscriptions/{subscriptionId}</code></td></tr>
+                        <tr><td>Register schema</td><td>POST</td><td><code>/api/v1/schemas</code></td></tr>
+                        <tr><td>Register Document_Type</td><td>POST</td><td><code>/api/v1/config/document-types</code></td></tr>
+                        <tr><td>Register channel</td><td>POST</td><td><code>/api/v1/config/channels</code></td></tr>
+                        <tr><td>Set enrichment</td><td>PUT</td><td><code>/api/v1/config/channels/{channelId}/enrichment</code></td></tr>
+                        <tr><td>Inspect quarantine</td><td>GET</td><td><code>/api/v1/quarantine/{ref}</code></td></tr>
+                        <tr><td>Change log level</td><td>PUT</td><td><code>/api/v1/config/log-level</code></td></tr>
+                        <tr><td>Health check</td><td>GET</td><td><code>/health</code></td></tr>
+                        <tr><td>Graceful shutdown</td><td>POST</td><td><code>/api/v1/admin/shutdown</code></td></tr>
+                    </tbody>
+                </table>
+
+                <p><em>Document version: 1.1 — August 2026. Corresponds to: TamaDB Increment 1</em></p>
+            </section>
+
+
+
+            <section id="about-me" class="page" hidden aria-labelledby="about-me-heading">
+                <h1 id="about-me-heading">About Me</h1>
+                <p>I'm passionate about building reliable, high-performance distributed systems. My focus areas include event-driven architectures and data pipelines.</p>
+                <h2>Background</h2>
+                <p>With experience in designing and implementing transmission-layer systems, I specialise in building purpose-built middleware that sits between data producers and consumers — ensuring data quality, reliability, and real-time delivery.</p>
+                <h2>Current Projects</h2>
+                <ul>
+                    <li><strong>TamaDB</strong> — A document-centric transmission cache for validated, versioned document delivery</li>
+                    <li><strong>PamaDB</strong> — A planned data publishing layer for transformations and frozen document snapshots</li>
+                </ul>
+            </section>
+
+            <section id="pamadb" class="page" hidden aria-labelledby="pamadb-heading">
+                <h1 id="pamadb-heading">PamaDB</h1>
+                <p>PamaDB is the planned <strong>data publishing layer</strong> in the TamaDB ecosystem. While TamaDB handles transmission (receive, validate, cache, deliver), PamaDB will handle transformation and publication.</p>
+                <h2>Planned Capabilities</h2>
+                <ul>
+                    <li><strong>Data Transformations</strong> — Apply rules to transform documents before publishing to downstream systems</li>
+                    <li><strong>Frozen Documents</strong> — Create immutable snapshots of document state for audit and compliance</li>
+                    <li><strong>Hard Subscriptions</strong> — Guaranteed delivery contracts with persistence and retry semantics beyond TamaDB's soft webhooks</li>
+                    <li><strong>Retrieval Schemas</strong> — Shape document output per consumer needs without affecting the stored canonical form</li>
+                </ul>
+                <h2>Relationship to TamaDB</h2>
+                <p>PamaDB consumes from TamaDB's delivery pipeline. TamaDB remains the dumb-pipe transmission layer; PamaDB adds intelligence for publishing. They are complementary, not competing.</p>
+            </section>
+
+            <section id="contact" class="page" hidden aria-labelledby="contact-heading">
+                <h1 id="contact-heading">Contact</h1>
+                <p>Feel free to reach out for questions, collaboration, or feedback on TamaDB and related projects.</p>
+                <h2>Get in Touch</h2>
+                <ul>
+                    <li><strong>Email:</strong> Available on request</li>
+                    <li><strong>GitHub:</strong> <a href="https://github.com/teneriscc">github.com/teneriscc</a></li>
+                </ul>
+            </section>
+
+            <section id="external-links" class="page" hidden aria-labelledby="external-links-heading">
+                <h1 id="external-links-heading">External Links</h1>
+                <h2>Code &amp; Repositories</h2>
+                <ul>
+                    <li><a href="https://github.com/teneriscc/TamaDB">TamaDB on GitHub</a> — Source code, issues, releases</li>
+                    <li><a href="https://hub.docker.com/r/teneriscc/tamadb">TamaDB on Docker Hub</a> — Prebuilt multi-arch image: <code>docker pull teneriscc/tamadb</code></li>
+                    <li><a href="https://github.com/teneriscc">GitHub Profile</a> — Open-source contributions and experiments</li>
+                </ul>
+                <h2>Technical Blog</h2>
+                <ul>
+                    <li><a href="https://dev.to">Technical Blog</a> — Articles on system design, middleware, and data architecture</li>
+                </ul>
+            </section>
+        </main>
+    </div>
+    <footer class="site-footer">
+        <p>© 2026 Teneris. All rights reserved. Licensed under <a href="https://www.apache.org/licenses/LICENSE-2.0" target="_blank" rel="noopener">Apache License 2.0</a>.</p>
+    </footer>
+    <script>
+        (function() {
+            var pages = document.querySelectorAll('.page');
+            var navLinks = document.querySelectorAll('.nav-link');
+            var defaultPage = 'about-tamadb';
+
+            function navigateTo(pageId) {
+                var target = document.getElementById(pageId);
+                if (!target) {
+                    pageId = defaultPage;
+                    target = document.getElementById(pageId);
+                }
+                for (var i = 0; i < pages.length; i++) {
+                    pages[i].hidden = true;
+                }
+                target.hidden = false;
+                for (var j = 0; j < navLinks.length; j++) {
+                    navLinks[j].classList.remove('active');
+                    navLinks[j].removeAttribute('aria-current');
+                }
+                var activeLink = document.querySelector('a[href="#' + pageId + '"]');
+                if (activeLink) {
+                    activeLink.classList.add('active');
+                    activeLink.setAttribute('aria-current', 'page');
+                }
+                var heading = target.querySelector('h1');
+                if (heading) {
+                    heading.focus();
+                }
+                document.querySelector('.content').scrollTop = 0;
+            }
+
+            function handleHashChange() {
+                var hash = window.location.hash.slice(1);
+                navigateTo(hash || defaultPage);
+            }
+
+            window.addEventListener('hashchange', handleHashChange);
+            window.addEventListener('DOMContentLoaded', function() {
+                var hash = window.location.hash.slice(1);
+                navigateTo(hash || defaultPage);
+            });
+
+            // Initial navigation for cases where DOMContentLoaded already fired
+            var hash = window.location.hash.slice(1);
+            navigateTo(hash || defaultPage);
+        })();
+    </script>
+</body>
+</html>
