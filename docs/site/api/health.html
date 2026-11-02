@@ -1,0 +1,128 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Health & Admin — TamaDB API Catalogue</title>
+    <meta name="author" content="Teneris">
+    <link rel="stylesheet" href="../style.css">
+    <link rel="icon" type="image/x-icon" href="../favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="../favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="../favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png">
+    <link rel="manifest" href="../site.webmanifest">
+</head>
+<body>
+    <div class="layout">
+        <nav class="sidebar" aria-label="API Catalogue navigation">
+            <div class="sidebar-brand"><a href="../index.html" style="color:inherit;text-decoration:none"><strong>T E N E R i S</strong></a></div>
+            <ul class="nav-tree" role="tree">
+                <li class="nav-group" role="treeitem" aria-expanded="true">
+                    <span class="nav-group-label">API Catalogue</span>
+                    <ul role="group">
+                        <li role="treeitem"><a href="../api-catalogue.html" class="nav-link">Overview</a></li>
+                        <li role="treeitem"><a href="../api-reference.html" class="nav-link">API Reference (Redoc)</a></li>
+                        <li role="treeitem"><a href="schemas.html" class="nav-link">Schemas</a></li>
+                        <li role="treeitem"><a href="document-types.html" class="nav-link">Document_Types</a></li>
+                        <li role="treeitem"><a href="channels.html" class="nav-link">Channels</a></li>
+                        <li role="treeitem"><a href="ingestion.html" class="nav-link">Ingestion</a></li>
+                        <li role="treeitem"><a href="documents.html" class="nav-link">Documents</a></li>
+                        <li role="treeitem"><a href="subscriptions.html" class="nav-link">Subscriptions</a></li>
+                        <li role="treeitem"><a href="quarantine.html" class="nav-link">Quarantine</a></li>
+                        <li role="treeitem"><a href="configuration.html" class="nav-link">Configuration</a></li>
+                        <li role="treeitem"><a href="health.html" class="nav-link active" aria-current="page">Health</a></li>
+                    </ul>
+                </li>
+                <li role="treeitem">
+                    <a href="../index.html" class="nav-link">&larr; Back to Site</a>
+                </li>
+            </ul>
+        </nav>
+        <main class="content" role="main">
+            <div class="page">
+                <h1>Health & Admin</h1>
+                <p>Health check and administrative operations. The health endpoint is the only one not under the <code>/api/v1</code> prefix.</p>
+
+                <section class="category">
+                    <h2 class="category-header">Quick Reference</h2>
+                    <div class="quick-ref">
+                        <table>
+                            <thead>
+                                <tr><th>Method</th><th>Path</th><th>Summary</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><span class="method method-get">GET</span></td>
+                                    <td class="path">/health</td>
+                                    <td>Health check</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="method method-post">POST</span></td>
+                                    <td class="path">/api/v1/admin/shutdown</td>
+                                    <td>Graceful shutdown</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- GET /health -->
+                <article class="endpoint" id="get-health">
+                    <div class="endpoint-header">
+                        <span class="method method-get">GET</span>
+                        <h3>/health</h3>
+                    </div>
+                    <div class="endpoint-body">
+                        <p class="endpoint-description">Returns current runtime state of the TamaDB instance.</p>
+                        <div class="endpoint-section">
+                            <h4>Response</h4>
+                            <div class="response-codes">
+                                <span class="response-code success"><span class="code">200</span> OK</span>
+                            </div>
+<pre class="code-block">{
+  <span class="key">"status"</span>: <span class="string">"ok"</span>,
+  <span class="key">"version"</span>: <span class="string">"0.5.0"</span>,
+  <span class="key">"commit"</span>: <span class="string">"0b8032935370"</span>,
+  <span class="key">"storageMode"</span>: <span class="string">"auto"</span>,
+  <span class="key">"logLevel"</span>: <span class="string">"debug"</span>
+}</pre>
+                        </div>
+                        <div class="endpoint-section">
+                            <div class="notes"><strong>Note:</strong> This is the only endpoint not under the <code>/api/v1</code> prefix. Use it for load-balancer health checks and quick status verification.</div>
+                        </div>
+                    </div>
+                </article>
+
+                <h2>Admin</h2>
+
+                <!-- POST /api/v1/admin/shutdown -->
+                <article class="endpoint" id="post-admin-shutdown">
+                    <div class="endpoint-header">
+                        <span class="method method-post">POST</span>
+                        <h3>/api/v1/admin/shutdown</h3>
+                    </div>
+                    <div class="endpoint-body">
+                        <p class="endpoint-description">Trigger a graceful shutdown. Drains in-memory documents to disk, persists all configuration state, closes the HTTP server, and exits the process. Works identically on all platforms.</p>
+                        <div class="endpoint-section">
+                            <h4>Response</h4>
+                            <div class="response-codes">
+                                <span class="response-code success"><span class="code">200</span> OK</span>
+                            </div>
+<pre class="code-block">{
+  <span class="key">"status"</span>: <span class="string">"shutting-down"</span>
+}</pre>
+                        </div>
+                        <div class="endpoint-section">
+                            <div class="notes"><strong>Note:</strong> The response is sent before the process exits. After receiving the response, the server will no longer accept new requests. This is the recommended way to stop TamaDB on all platforms (especially Windows where SIGTERM is unreliable).</div>
+                        </div>
+                    </div>
+                </article>
+
+            </div>
+        </main>
+    </div>
+    <footer class="site-footer">
+        <p>© 2026 Teneris. All rights reserved. Licensed under <a href="https://www.apache.org/licenses/LICENSE-2.0" target="_blank" rel="noopener">Apache License 2.0</a>.</p>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,256 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Schemas — TamaDB API Catalogue</title>
+    <meta name="author" content="Teneris">
+    <link rel="stylesheet" href="../style.css">
+    <link rel="icon" type="image/x-icon" href="../favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="../favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="../favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png">
+    <link rel="manifest" href="../site.webmanifest">
+</head>
+<body>
+    <div class="layout">
+        <nav class="sidebar" aria-label="API Catalogue navigation">
+            <div class="sidebar-brand"><a href="../index.html" style="color:inherit;text-decoration:none"><strong>T E N E R i S</strong></a></div>
+            <ul class="nav-tree" role="tree">
+                <li class="nav-group" role="treeitem" aria-expanded="true">
+                    <span class="nav-group-label">API Catalogue</span>
+                    <ul role="group">
+                        <li role="treeitem"><a href="../api-catalogue.html" class="nav-link">Overview</a></li>
+                        <li role="treeitem"><a href="../api-reference.html" class="nav-link">API Reference (Redoc)</a></li>
+                        <li role="treeitem"><a href="schemas.html" class="nav-link active" aria-current="page">Schemas</a></li>
+                        <li role="treeitem"><a href="document-types.html" class="nav-link">Document_Types</a></li>
+                        <li role="treeitem"><a href="channels.html" class="nav-link">Channels</a></li>
+                        <li role="treeitem"><a href="ingestion.html" class="nav-link">Ingestion</a></li>
+                        <li role="treeitem"><a href="documents.html" class="nav-link">Documents</a></li>
+                        <li role="treeitem"><a href="subscriptions.html" class="nav-link">Subscriptions</a></li>
+                        <li role="treeitem"><a href="quarantine.html" class="nav-link">Quarantine</a></li>
+                        <li role="treeitem"><a href="configuration.html" class="nav-link">Configuration</a></li>
+                        <li role="treeitem"><a href="health.html" class="nav-link">Health</a></li>
+                    </ul>
+                </li>
+                <li role="treeitem">
+                    <a href="../index.html" class="nav-link">&larr; Back to Site</a>
+                </li>
+            </ul>
+        </nav>
+        <main class="content" role="main">
+            <div class="page">
+                <h1>Schemas</h1>
+                <p>Schema registration and lifecycle management. Schemas define the structure documents must follow (JSON Schema Draft 7).</p>
+
+                <section class="category">
+                    <h2 class="category-header">Quick Reference</h2>
+                    <div class="quick-ref">
+                        <table>
+                            <thead>
+                                <tr><th>Method</th><th>Path</th><th>Summary</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><span class="method method-post">POST</span></td>
+                                    <td class="path">/api/v1/schemas</td>
+                                    <td>Register a new schema</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="method method-get">GET</span></td>
+                                    <td class="path">/api/v1/schemas/{schemaRef}</td>
+                                    <td>Retrieve a schema</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="method method-put">PUT</span></td>
+                                    <td class="path">/api/v1/schemas/{schemaRef}</td>
+                                    <td>Update a schema (new version)</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="method method-get">GET</span></td>
+                                    <td class="path">/api/v1/schemas/{schemaRef}/versions</td>
+                                    <td>List schema version history</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="method method-post">POST</span></td>
+                                    <td class="path">/api/v1/schemas/{schemaRef}/decommission</td>
+                                    <td>Decommission a schema</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="method method-post">POST</span></td>
+                                    <td class="path">/api/v1/schemas/{schemaRef}/reactivate</td>
+                                    <td>Reactivate a decommissioned schema</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- POST /api/v1/schemas -->
+                <article class="endpoint" id="post-schemas">
+                    <div class="endpoint-header">
+                        <span class="method method-post">POST</span>
+                        <h3>/api/v1/schemas</h3>
+                    </div>
+                    <div class="endpoint-body">
+                        <p class="endpoint-description">Register a new JSON Schema (Draft 7). Use <code>identityKind</code> annotations on properties to define D-Id extraction fields.</p>
+                        <div class="endpoint-section">
+                            <h4>Request Body</h4>
+                            <table class="params-table">
+                                <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+                                <tbody>
+                                    <tr><td><span class="param-name">ref</span></td><td><span class="param-type">string</span></td><td><span class="param-required">Yes</span></td><td>Unique schema reference identifier</td></tr>
+                                    <tr><td><span class="param-name">schema</span></td><td><span class="param-type">object</span></td><td><span class="param-required">Yes</span></td><td>JSON Schema Draft 7 object</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="endpoint-section">
+                            <h4>Response</h4>
+                            <div class="response-codes">
+                                <span class="response-code success"><span class="code">201</span> Created</span>
+                                <span class="response-code error"><span class="code">400</span> Bad Request</span>
+                                <span class="response-code error"><span class="code">409</span> Conflict (ref exists)</span>
+                            </div>
+<pre class="code-block">{
+  <span class="key">"ref"</span>: <span class="string">"temperature-sensor-v1"</span>,
+  <span class="key">"version"</span>: <span class="number">1</span>
+}</pre>
+                        </div>
+                        <div class="endpoint-section">
+                            <div class="notes"><strong>Note:</strong> Properties annotated with <code>"identityKind": "primary-key"</code> or <code>"parent-key"</code> define the D-Id extraction strategy for documents validated against this schema.</div>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- GET /api/v1/schemas/{schemaRef} -->
+                <article class="endpoint" id="get-schemas-ref">
+                    <div class="endpoint-header">
+                        <span class="method method-get">GET</span>
+                        <h3>/api/v1/schemas/{schemaRef}</h3>
+                    </div>
+                    <div class="endpoint-body">
+                        <p class="endpoint-description">Retrieve the current version of a registered schema.</p>
+                        <div class="endpoint-section">
+                            <h4>Response</h4>
+                            <div class="response-codes">
+                                <span class="response-code success"><span class="code">200</span> OK</span>
+                                <span class="response-code error"><span class="code">404</span> Not Found</span>
+                            </div>
+<pre class="code-block">{
+  <span class="key">"ref"</span>: <span class="string">"temperature-sensor-v1"</span>,
+  <span class="key">"version"</span>: <span class="number">2</span>,
+  <span class="key">"status"</span>: <span class="string">"active"</span>,
+  <span class="key">"schema"</span>: { ... }
+}</pre>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- PUT /api/v1/schemas/{schemaRef} -->
+                <article class="endpoint" id="put-schemas-ref">
+                    <div class="endpoint-header">
+                        <span class="method method-put">PUT</span>
+                        <h3>/api/v1/schemas/{schemaRef}</h3>
+                    </div>
+                    <div class="endpoint-body">
+                        <p class="endpoint-description">Update an existing schema. Creates a new version; previous versions are retained in history.</p>
+                        <div class="endpoint-section">
+                            <h4>Request Body</h4>
+                            <table class="params-table">
+                                <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+                                <tbody>
+                                    <tr><td><span class="param-name">schema</span></td><td><span class="param-type">object</span></td><td><span class="param-required">Yes</span></td><td>Updated JSON Schema Draft 7 object</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="endpoint-section">
+                            <h4>Response</h4>
+                            <div class="response-codes">
+                                <span class="response-code success"><span class="code">200</span> OK</span>
+                                <span class="response-code error"><span class="code">404</span> Not Found</span>
+                            </div>
+<pre class="code-block">{
+  <span class="key">"ref"</span>: <span class="string">"temperature-sensor-v1"</span>,
+  <span class="key">"version"</span>: <span class="number">2</span>
+}</pre>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- GET /api/v1/schemas/{schemaRef}/versions -->
+                <article class="endpoint" id="get-schemas-versions">
+                    <div class="endpoint-header">
+                        <span class="method method-get">GET</span>
+                        <h3>/api/v1/schemas/{schemaRef}/versions</h3>
+                    </div>
+                    <div class="endpoint-body">
+                        <p class="endpoint-description">List all historical versions of a schema.</p>
+                        <div class="endpoint-section">
+                            <h4>Response</h4>
+                            <div class="response-codes">
+                                <span class="response-code success"><span class="code">200</span> OK</span>
+                                <span class="response-code error"><span class="code">404</span> Not Found</span>
+                            </div>
+<pre class="code-block">{
+  <span class="key">"ref"</span>: <span class="string">"temperature-sensor-v1"</span>,
+  <span class="key">"versions"</span>: [
+    { <span class="key">"version"</span>: <span class="number">1</span>, <span class="key">"createdAt"</span>: <span class="string">"2026-07-17T10:00:00Z"</span> },
+    { <span class="key">"version"</span>: <span class="number">2</span>, <span class="key">"createdAt"</span>: <span class="string">"2026-07-18T14:30:00Z"</span> }
+  ]
+}</pre>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- POST /api/v1/schemas/{schemaRef}/decommission -->
+                <article class="endpoint" id="post-schemas-decommission">
+                    <div class="endpoint-header">
+                        <span class="method method-post">POST</span>
+                        <h3>/api/v1/schemas/{schemaRef}/decommission</h3>
+                    </div>
+                    <div class="endpoint-body">
+                        <p class="endpoint-description">Prevent the schema from being assigned to new Document_Types. Existing assignments continue to work.</p>
+                        <div class="endpoint-section">
+                            <h4>Response</h4>
+                            <div class="response-codes">
+                                <span class="response-code success"><span class="code">200</span> OK</span>
+                                <span class="response-code error"><span class="code">404</span> Not Found</span>
+                            </div>
+<pre class="code-block">{
+  <span class="key">"ref"</span>: <span class="string">"temperature-sensor-v1"</span>,
+  <span class="key">"status"</span>: <span class="string">"decommissioned"</span>
+}</pre>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- POST /api/v1/schemas/{schemaRef}/reactivate -->
+                <article class="endpoint" id="post-schemas-reactivate">
+                    <div class="endpoint-header">
+                        <span class="method method-post">POST</span>
+                        <h3>/api/v1/schemas/{schemaRef}/reactivate</h3>
+                    </div>
+                    <div class="endpoint-body">
+                        <p class="endpoint-description">Reactivate a decommissioned schema, allowing new Document_Type assignments again.</p>
+                        <div class="endpoint-section">
+                            <h4>Response</h4>
+                            <div class="response-codes">
+                                <span class="response-code success"><span class="code">200</span> OK</span>
+                                <span class="response-code error"><span class="code">404</span> Not Found</span>
+                            </div>
+<pre class="code-block">{
+  <span class="key">"ref"</span>: <span class="string">"temperature-sensor-v1"</span>,
+  <span class="key">"status"</span>: <span class="string">"active"</span>
+}</pre>
+                        </div>
+                    </div>
+                </article>
+
+            </div>
+        </main>
+    </div>
+    <footer class="site-footer">
+        <p>© 2026 Teneris. All rights reserved. Licensed under <a href="https://www.apache.org/licenses/LICENSE-2.0" target="_blank" rel="noopener">Apache License 2.0</a>.</p>
+    </footer>
+</body>
+</html>
