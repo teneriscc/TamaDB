@@ -1,0 +1,141 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quarantine — TamaDB API Catalogue</title>
+    <meta name="author" content="Teneris">
+    <link rel="stylesheet" href="../style.css">
+    <link rel="icon" type="image/x-icon" href="../favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="../favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="../favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png">
+    <link rel="manifest" href="../site.webmanifest">
+</head>
+<body>
+    <div class="layout">
+        <nav class="sidebar" aria-label="API Catalogue navigation">
+            <div class="sidebar-brand"><a href="../index.html" style="color:inherit;text-decoration:none"><strong>T E N E R i S</strong></a></div>
+            <ul class="nav-tree" role="tree">
+                <li class="nav-group" role="treeitem" aria-expanded="true">
+                    <span class="nav-group-label">API Catalogue</span>
+                    <ul role="group">
+                        <li role="treeitem"><a href="../api-catalogue.html" class="nav-link">Overview</a></li>
+                        <li role="treeitem"><a href="../api-reference.html" class="nav-link">API Reference (Redoc)</a></li>
+                        <li role="treeitem"><a href="schemas.html" class="nav-link">Schemas</a></li>
+                        <li role="treeitem"><a href="document-types.html" class="nav-link">Document_Types</a></li>
+                        <li role="treeitem"><a href="channels.html" class="nav-link">Channels</a></li>
+                        <li role="treeitem"><a href="ingestion.html" class="nav-link">Ingestion</a></li>
+                        <li role="treeitem"><a href="documents.html" class="nav-link">Documents</a></li>
+                        <li role="treeitem"><a href="subscriptions.html" class="nav-link">Subscriptions</a></li>
+                        <li role="treeitem"><a href="quarantine.html" class="nav-link active" aria-current="page">Quarantine</a></li>
+                        <li role="treeitem"><a href="configuration.html" class="nav-link">Configuration</a></li>
+                        <li role="treeitem"><a href="health.html" class="nav-link">Health</a></li>
+                    </ul>
+                </li>
+                <li role="treeitem">
+                    <a href="../index.html" class="nav-link">&larr; Back to Site</a>
+                </li>
+            </ul>
+        </nav>
+        <main class="content" role="main">
+            <div class="page">
+                <h1>Quarantine</h1>
+                <p>Read-only inspection of quarantined payloads. Rejected documents are stored here when the quarantine policy permits it.</p>
+
+                <section class="category">
+                    <h2 class="category-header">Quick Reference</h2>
+                    <div class="quick-ref">
+                        <table>
+                            <thead>
+                                <tr><th>Method</th><th>Path</th><th>Summary</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><span class="method method-get">GET</span></td>
+                                    <td class="path">/api/v1/quarantine</td>
+                                    <td>List quarantined entries</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="method method-get">GET</span></td>
+                                    <td class="path">/api/v1/quarantine/{ref}</td>
+                                    <td>Inspect a quarantined entry</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- GET /api/v1/quarantine -->
+                <article class="endpoint" id="get-quarantine">
+                    <div class="endpoint-header">
+                        <span class="method method-get">GET</span>
+                        <h3>/api/v1/quarantine</h3>
+                    </div>
+                    <div class="endpoint-body">
+                        <p class="endpoint-description">List quarantined entries.</p>
+                        <div class="endpoint-section">
+                            <h4>Query Parameters</h4>
+                            <table class="params-table">
+                                <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+                                <tbody>
+                                    <tr><td><span class="param-name">rejectionType</span></td><td><span class="param-type">string</span></td><td><span class="param-required">No</span></td><td>"parse-error" | "validation-failure"</td></tr>
+                                    <tr><td><span class="param-name">sourceIdentifier</span></td><td><span class="param-type">string</span></td><td><span class="param-required">No</span></td><td>Filter by source identifier</td></tr>
+                                    <tr><td><span class="param-name">limit</span></td><td><span class="param-type">integer</span></td><td><span class="param-required">No</span></td><td>Maximum number of entries to return</td></tr>
+                                    <tr><td><span class="param-name">offset</span></td><td><span class="param-type">integer</span></td><td><span class="param-required">No</span></td><td>Number of entries to skip</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="endpoint-section">
+                            <h4>Response</h4>
+                            <div class="response-codes">
+                                <span class="response-code success"><span class="code">200</span> OK</span>
+                            </div>
+<pre class="code-block">{
+  <span class="key">"entries"</span>: [<span class="string">...</span>],
+  <span class="key">"count"</span>: <span class="number">3</span>
+}</pre>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- GET /api/v1/quarantine/{ref} -->
+                <article class="endpoint" id="get-quarantine-ref">
+                    <div class="endpoint-header">
+                        <span class="method method-get">GET</span>
+                        <h3>/api/v1/quarantine/{ref}</h3>
+                    </div>
+                    <div class="endpoint-body">
+                        <p class="endpoint-description">Retrieve by reference ID (returned in error responses as <code>quarantineRef</code>).</p>
+                        <div class="endpoint-section">
+                            <h4>Response</h4>
+                            <div class="response-codes">
+                                <span class="response-code success"><span class="code">200</span> OK</span>
+                                <span class="response-code error"><span class="code">404</span> Not found or evicted</span>
+                            </div>
+<pre class="code-block">{
+  <span class="key">"ref"</span>: <span class="string">"qr-m1abc-0001"</span>,
+  <span class="key">"payload"</span>: {
+    <span class="key">"sensorId"</span>: <span class="string">"BAD-01"</span>,
+    <span class="key">"temperature"</span>: <span class="string">"not-a-number"</span>
+  },
+  <span class="key">"context"</span>: {
+    <span class="key">"receivedAt"</span>: <span class="string">"2026-07-17T10:07:00Z"</span>,
+    <span class="key">"sourceIdentifier"</span>: <span class="string">"default"</span>,
+    <span class="key">"schemaRef"</span>: <span class="string">"temperature-sensor-v1"</span>,
+    <span class="key">"rejectionReason"</span>: <span class="string">"Field 'temperature' expected type number, got string"</span>,
+    <span class="key">"rejectionType"</span>: <span class="string">"validation-failure"</span>
+  }
+}</pre>
+                        </div>
+                    </div>
+                </article>
+
+            </div>
+        </main>
+    </div>
+    <footer class="site-footer">
+        <p>© 2026 Teneris. All rights reserved. Licensed under <a href="https://www.apache.org/licenses/LICENSE-2.0" target="_blank" rel="noopener">Apache License 2.0</a>.</p>
+    </footer>
+</body>
+</html>

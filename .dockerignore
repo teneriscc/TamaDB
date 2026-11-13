@@ -1,0 +1,45 @@
+# Dependencies (reinstalled inside the image via npm ci)
+node_modules
+npm-debug.log*
+
+# Build output (regenerated inside the image)
+dist
+
+# Local runtime state — must never leak into the image
+.tamadb-data
+
+# Tests and coverage (not needed in the runtime image)
+test
+tests
+**/*.test.ts
+**/*.spec.ts
+coverage
+.vitest
+
+# Docs, notes, and site (large; not part of the runnable artifact)
+docs
+examples
+*.md
+!package.json
+PAC.docx
+highLevelArchitecture.png
+
+# VCS / CI / editor / tooling
+.git
+.gitignore
+.gitlab-ci.yml
+.github
+.vscode
+.kiro
+eslint.config.js
+# NOTE: scripts/ is intentionally NOT ignored — the build stage runs
+# `npm run build` whose postbuild step (scripts/gen-build-info.mjs) generates
+# dist/build-info.json. scripts/ is only used in the build stage; it does not
+# ship in the runtime image (which copies only dist/, node_modules, package.json).
+
+# Docker files themselves
+Dockerfile
+.dockerignore
+
+# OS cruft
+.DS_Store

@@ -1,0 +1,407 @@
+/* ============================================
+   1. CSS Custom Properties (Design Tokens)
+   ============================================ */
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&family=IBM+Plex+Mono:wght@400;700&display=swap');
+
+:root {
+    --teal-primary: #2AA198;
+    --teal-hover: #1D7F7A;
+    --blue-accent: #60A5FA;
+    --bg: #0A0A0A;
+    --surface: #111111;
+    --surface-2: #1A1A1A;
+    --text-main: #F5F5F0;
+    --text-gray: #888888;
+    --text-muted: #8a8a8a;
+    --text-dim: #878787;
+    --border: #2D2D2D;
+    --border-subtle: #1D1D1D;
+    --green-success: #4ADE80;
+    --blue-info: #60A5FA;
+    --rose-alert: #F43F5E;
+    --cyan-highlight: #22D3EE;
+    --font-display: 'Space Grotesk', sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+    --font-size-base: 14px;
+    --line-height-base: 1.7;
+    --max-content-width: 1100px;
+    --sidebar-width: 240px;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 2rem;
+    --spacing-xl: 3rem;
+}
+
+/* ============================================
+   2. Reset & Base Styles
+   ============================================ */
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: var(--font-mono);
+    font-size: var(--font-size-base);
+    line-height: var(--line-height-base);
+    color: var(--text-main);
+    background-color: var(--bg);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    color: var(--text-main);
+    margin-top: var(--spacing-xl);
+    margin-bottom: var(--spacing-md);
+    line-height: 1.1;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: -0.02em;
+}
+
+h1 {
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    margin-top: 0;
+    line-height: 0.92;
+}
+
+h2 {
+    font-size: clamp(1.3rem, 3vw, 1.75rem);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: var(--spacing-sm);
+}
+
+h3 {
+    font-size: 1.1rem;
+    color: var(--teal-primary);
+}
+
+h4 {
+    font-size: 1rem;
+    color: var(--text-gray);
+}
+
+h1:focus {
+    outline: 2px solid var(--teal-primary);
+    outline-offset: 4px;
+}
+
+p {
+    margin-top: 0;
+    margin-bottom: var(--spacing-md);
+    max-width: 72ch;
+    color: var(--text-muted);
+}
+
+ul, ol {
+    margin-top: 0;
+    margin-bottom: var(--spacing-md);
+    padding-left: var(--spacing-lg);
+    max-width: 72ch;
+    color: var(--text-muted);
+}
+
+li {
+    margin-bottom: var(--spacing-sm);
+}
+
+li strong {
+    color: var(--text-main);
+}
+
+a {
+    color: var(--teal-primary);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+a:hover {
+    color: var(--teal-hover);
+}
+
+a:focus {
+    outline: 2px solid var(--teal-primary);
+    outline-offset: 2px;
+}
+
+strong {
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+/* ============================================
+   3. Layout (sidebar + content)
+   ============================================ */
+.layout {
+    display: flex;
+    min-height: 100vh;
+}
+
+.sidebar {
+    width: var(--sidebar-width);
+    min-width: var(--sidebar-width);
+    background-color: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: var(--spacing-lg) 0;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+}
+
+.content {
+    flex: 1;
+    padding: var(--spacing-xl);
+    overflow-y: auto;
+    height: 100vh;
+    max-width: var(--max-content-width);
+    margin: 0 auto;
+}
+
+/* ============================================
+   4. Navigation Tree
+   ============================================ */
+.sidebar-brand {
+    padding: 1rem 1.2rem 1.5rem;
+    font-size: 1.1rem;
+    letter-spacing: 0.15em;
+    color: var(--teal-primary);
+}
+
+.nav-tree {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.nav-tree ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    padding-left: var(--spacing-md);
+}
+
+.nav-group {
+    margin-bottom: 2px;
+}
+
+.nav-group-label {
+    display: block;
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+    user-select: none;
+}
+
+.nav-link {
+    display: block;
+    padding: var(--spacing-sm) var(--spacing-md);
+    color: var(--text-gray);
+    text-decoration: none;
+    border-left: 2px solid transparent;
+    transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+    font-size: 0.85rem;
+    font-family: var(--font-mono);
+}
+
+.nav-link:hover {
+    background-color: var(--surface-2);
+    color: var(--text-main);
+}
+
+.nav-link:focus {
+    outline: 2px solid var(--teal-primary);
+    outline-offset: -2px;
+}
+
+.nav-link.active {
+    background-color: var(--surface-2);
+    border-left-color: var(--teal-primary);
+    font-weight: 700;
+    color: var(--teal-primary);
+}
+
+/* ============================================
+   5. Content Area & Typography
+   ============================================ */
+.page {
+    max-width: 900px;
+}
+
+.page > h1 {
+    color: var(--teal-primary);
+    margin-bottom: var(--spacing-lg);
+}
+
+/* ============================================
+   6. Code Blocks & Tables
+   ============================================ */
+code {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    background-color: var(--surface-2);
+    color: var(--teal-primary);
+    padding: 0.15em 0.4em;
+    border-radius: 2px;
+    border: 1px solid var(--border-subtle);
+}
+
+pre {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    line-height: 1.6;
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: var(--spacing-md);
+    overflow-x: auto;
+    max-width: 100%;
+    margin-bottom: var(--spacing-lg);
+    color: var(--text-muted);
+}
+
+pre code {
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: inherit;
+    color: inherit;
+}
+
+table {
+    width: 100%;
+    max-width: 100%;
+    border-collapse: collapse;
+    margin-bottom: var(--spacing-lg);
+    font-size: 0.85rem;
+}
+
+th, td {
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 1px solid var(--border);
+    text-align: left;
+    vertical-align: top;
+}
+
+th {
+    background-color: var(--surface-2);
+    font-weight: 700;
+    color: var(--text-main);
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+}
+
+td {
+    color: var(--text-muted);
+}
+
+tr:nth-child(even) {
+    background-color: var(--surface);
+}
+
+/* ============================================
+   7. Diagrams (pre-formatted ASCII art)
+   ============================================ */
+pre.ascii-art {
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 0.8rem;
+    line-height: 1.3;
+    white-space: pre;
+    overflow-x: auto;
+    color: var(--text-gray);
+    border-color: var(--border-subtle);
+}
+
+/* ============================================
+   8. Utility Classes & Scrollbar
+   ============================================ */
+.page[hidden] {
+    display: none;
+}
+
+/* Custom scrollbar for dark theme */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--text-dim);
+}
+
+/* ============================================
+   9. Reduced Motion
+   ============================================ */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        transition-duration: 0s !important;
+        animation-duration: 0s !important;
+    }
+    html {
+        scroll-behavior: auto;
+    }
+}
+
+/* ============================================
+   10. Responsive
+   ============================================ */
+@media (max-width: 900px) {
+    .sidebar {
+        width: 200px;
+        min-width: 200px;
+    }
+}
+
+@media (max-width: 768px) {
+    .layout {
+        flex-direction: column;
+    }
+    .sidebar {
+        width: 100%;
+        min-width: 100%;
+        height: auto;
+        position: static;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        padding: var(--spacing-md) 0;
+    }
+    .content {
+        height: auto;
+        padding: var(--spacing-lg);
+    }
+    .nav-tree ul {
+        display: flex;
+        flex-wrap: wrap;
+        padding-left: 0;
+    }
+    .nav-link {
+        border-left: none;
+        border-bottom: 2px solid transparent;
+        padding: var(--spacing-sm) var(--spacing-md);
+    }
+    .nav-link.active {
+        border-left-color: transparent;
+        border-bottom-color: var(--teal-primary);
+    }
+}
