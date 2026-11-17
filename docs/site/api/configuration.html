@@ -1,0 +1,380 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuration — TamaDB API Catalogue</title>
+    <meta name="author" content="Teneris">
+    <link rel="stylesheet" href="../style.css">
+    <link rel="icon" type="image/x-icon" href="../favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="../favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="../favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png">
+    <link rel="manifest" href="../site.webmanifest">
+</head>
+<body>
+    <div class="layout">
+        <nav class="sidebar" aria-label="API Catalogue navigation">
+            <div class="sidebar-brand"><a href="../index.html" style="color:inherit;text-decoration:none"><strong>T E N E R i S</strong></a></div>
+            <ul class="nav-tree" role="tree">
+                <li class="nav-group" role="treeitem" aria-expanded="true">
+                    <span class="nav-group-label">API Catalogue</span>
+                    <ul role="group">
+                        <li role="treeitem"><a href="../api-catalogue.html" class="nav-link">Overview</a></li>
+                        <li role="treeitem"><a href="../api-reference.html" class="nav-link">API Reference (Redoc)</a></li>
+                        <li role="treeitem"><a href="schemas.html" class="nav-link">Schemas</a></li>
+                        <li role="treeitem"><a href="document-types.html" class="nav-link">Document_Types</a></li>
+                        <li role="treeitem"><a href="channels.html" class="nav-link">Channels</a></li>
+                        <li role="treeitem"><a href="ingestion.html" class="nav-link">Ingestion</a></li>
+                        <li role="treeitem"><a href="documents.html" class="nav-link">Documents</a></li>
+                        <li role="treeitem"><a href="subscriptions.html" class="nav-link">Subscriptions</a></li>
+                        <li role="treeitem"><a href="quarantine.html" class="nav-link">Quarantine</a></li>
+                        <li role="treeitem"><a href="configuration.html" class="nav-link active" aria-current="page">Configuration</a></li>
+                        <li role="treeitem"><a href="health.html" class="nav-link">Health</a></li>
+                    </ul>
+                </li>
+                <li role="treeitem">
+                    <a href="../index.html" class="nav-link">&larr; Back to Site</a>
+                </li>
+            </ul>
+        </nav>
+        <main class="content" role="main">
+            <div class="page">
+                <h1>Configuration</h1>
+                <p>Runtime configuration endpoints. All settings are changeable without restarting TamaDB.</p>
+
+                <section class="category">
+                    <h2 class="category-header">Quick Reference</h2>
+                    <div class="quick-ref">
+                        <table>
+                            <thead>
+                                <tr><th>Method</th><th>Path</th><th>Summary</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><span class="method method-get">GET</span></td>
+                                    <td class="path">/api/v1/config/log-level</td>
+                                    <td>Get current log level</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="method method-put">PUT</span></td>
+                                    <td class="path">/api/v1/config/log-level</td>
+                                    <td>Change log level</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="method method-get">GET</span></td>
+                                    <td class="path">/api/v1/config/log-destination</td>
+                                    <td>Get current log destination</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="method method-put">PUT</span></td>
+                                    <td class="path">/api/v1/config/log-destination</td>
+                                    <td>Change log destination</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="method method-get">GET</span></td>
+                                    <td class="path">/api/v1/config/storage-strategy</td>
+                                    <td>Get current storage strategy</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="method method-put">PUT</span></td>
+                                    <td class="path">/api/v1/config/storage-strategy</td>
+                                    <td>Change storage strategy</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="method method-post">POST</span></td>
+                                    <td class="path">/api/v1/config/storage/drain</td>
+                                    <td>Drain memory to disk</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="method method-get">GET</span></td>
+                                    <td class="path">/api/v1/config/quarantine-policy</td>
+                                    <td>Get quarantine policy</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="method method-put">PUT</span></td>
+                                    <td class="path">/api/v1/config/quarantine-policy</td>
+                                    <td>Change quarantine policy</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="method method-get">GET</span></td>
+                                    <td class="path">/api/v1/config/enrichment-policies</td>
+                                    <td>Get enrichment policies</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="method method-put">PUT</span></td>
+                                    <td class="path">/api/v1/config/enrichment-policies</td>
+                                    <td>Change enrichment policies</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="method method-get">GET</span></td>
+                                    <td class="path">/api/v1/config/ttl/instance</td>
+                                    <td>Get instance-level TTL</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="method method-put">PUT</span></td>
+                                    <td class="path">/api/v1/config/ttl/instance</td>
+                                    <td>Set instance-level TTL</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="method method-put">PUT</span></td>
+                                    <td class="path">/api/v1/config/ttl/sweep-interval</td>
+                                    <td>Set TTL sweep interval</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- GET/PUT /api/v1/config/log-level -->
+                <article class="endpoint" id="get-put-config-log-level">
+                    <div class="endpoint-header">
+                        <span class="method method-get">GET</span>
+                        <span class="method method-put">PUT</span>
+                        <h3>/api/v1/config/log-level</h3>
+                    </div>
+                    <div class="endpoint-body">
+                        <p class="endpoint-description">Get or change the current log level.</p>
+                        <div class="endpoint-section">
+                            <h4>PUT Request Body</h4>
+<pre class="code-block">{
+  <span class="key">"level"</span>: <span class="string">"debug"</span>|<span class="string">"info"</span>|<span class="string">"warn"</span>|<span class="string">"error"</span>|<span class="string">"silent"</span>
+}</pre>
+                        </div>
+                        <div class="endpoint-section">
+                            <h4>Response</h4>
+                            <div class="response-codes">
+                                <span class="response-code success"><span class="code">200</span> OK</span>
+                                <span class="response-code error"><span class="code">400</span> Bad Request (invalid level)</span>
+                            </div>
+<pre class="code-block">{
+  <span class="key">"level"</span>: <span class="string">"warn"</span>
+}</pre>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- GET/PUT /api/v1/config/log-destination -->
+                <article class="endpoint" id="get-put-config-log-destination">
+                    <div class="endpoint-header">
+                        <span class="method method-get">GET</span>
+                        <span class="method method-put">PUT</span>
+                        <h3>/api/v1/config/log-destination</h3>
+                    </div>
+                    <div class="endpoint-body">
+                        <p class="endpoint-description">Get or change the log output destination.</p>
+                        <div class="endpoint-section">
+                            <h4>PUT Request Body</h4>
+                            <table class="params-table">
+                                <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+                                <tbody>
+                                    <tr><td><span class="param-name">destination</span></td><td><span class="param-type">string</span></td><td><span class="param-required">Yes</span></td><td><code>"stdout"</code> | <code>"file"</code> | <code>"none"</code></td></tr>
+                                    <tr><td><span class="param-name">filePath</span></td><td><span class="param-type">string</span></td><td><span class="param-required">Conditional</span></td><td>Required when destination is <code>"file"</code></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="endpoint-section">
+                            <h4>Response</h4>
+                            <div class="response-codes">
+                                <span class="response-code success"><span class="code">200</span> OK</span>
+                                <span class="response-code error"><span class="code">400</span> Bad Request</span>
+                            </div>
+<pre class="code-block">{
+  <span class="key">"destination"</span>: <span class="string">"file"</span>,
+  <span class="key">"filePath"</span>: <span class="string">"./tamadb.log"</span>
+}</pre>
+                        </div>
+                        <div class="endpoint-section">
+                            <div class="notes"><strong>Note:</strong> When destination is <code>"stdout"</code> or <code>"none"</code>, the <code>filePath</code> field is omitted from the response. When destination is <code>"file"</code>, <code>filePath</code> is required in the request.</div>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- GET/PUT /api/v1/config/storage-strategy -->
+                <article class="endpoint" id="get-put-config-storage-strategy">
+                    <div class="endpoint-header">
+                        <span class="method method-get">GET</span>
+                        <span class="method method-put">PUT</span>
+                        <h3>/api/v1/config/storage-strategy</h3>
+                    </div>
+                    <div class="endpoint-body">
+                        <p class="endpoint-description">Get or change the storage strategy.</p>
+                        <div class="endpoint-section">
+                            <h4>PUT Request Body</h4>
+<pre class="code-block">{
+  <span class="key">"mode"</span>: <span class="string">"auto"</span>|<span class="string">"memory"</span>|<span class="string">"disk"</span>|<span class="string">"hybrid"</span>
+}</pre>
+                        </div>
+                        <div class="endpoint-section">
+                            <h4>Response</h4>
+                            <div class="response-codes">
+                                <span class="response-code success"><span class="code">200</span> OK</span>
+                                <span class="response-code error"><span class="code">400</span> Bad Request</span>
+                            </div>
+<pre class="code-block">{
+  <span class="key">"mode"</span>: <span class="string">"memory"</span>
+}</pre>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- POST /api/v1/config/storage/drain -->
+                <article class="endpoint" id="post-config-storage-drain">
+                    <div class="endpoint-header">
+                        <span class="method method-post">POST</span>
+                        <h3>/api/v1/config/storage/drain</h3>
+                    </div>
+                    <div class="endpoint-body">
+                        <p class="endpoint-description">Flush all in-memory documents to disk. No-op when already in disk mode.</p>
+                        <div class="endpoint-section">
+                            <h4>Request Body</h4>
+                            <p>No request body required.</p>
+                        </div>
+                        <div class="endpoint-section">
+                            <h4>Response</h4>
+                            <div class="response-codes">
+                                <span class="response-code success"><span class="code">200</span> OK</span>
+                            </div>
+<pre class="code-block">{
+  <span class="key">"drained"</span>: <span class="boolean">true</span>,
+  <span class="key">"documentsWritten"</span>: <span class="number">42</span>,
+  <span class="key">"mode"</span>: <span class="string">"auto"</span>
+}</pre>
+                        </div>
+                        <div class="endpoint-section">
+                            <div class="notes"><strong>Note:</strong> Flushes all in-memory documents to disk. No-op in disk mode. Also runs automatically on graceful shutdown (Ctrl+C / SIGTERM).</div>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- GET/PUT /api/v1/config/quarantine-policy -->
+                <article class="endpoint" id="get-put-config-quarantine-policy">
+                    <div class="endpoint-header">
+                        <span class="method method-get">GET</span>
+                        <span class="method method-put">PUT</span>
+                        <h3>/api/v1/config/quarantine-policy</h3>
+                    </div>
+                    <div class="endpoint-body">
+                        <p class="endpoint-description">Get or change the quarantine policy.</p>
+                        <div class="endpoint-section">
+                            <h4>PUT Request Body</h4>
+<pre class="code-block">{
+  <span class="key">"policy"</span>: <span class="string">"off"</span>|<span class="string">"data-errors-only"</span>|<span class="string">"all-rejections"</span>
+}</pre>
+                        </div>
+                        <div class="endpoint-section">
+                            <h4>Response</h4>
+                            <div class="response-codes">
+                                <span class="response-code success"><span class="code">200</span> OK</span>
+                                <span class="response-code error"><span class="code">400</span> Bad Request</span>
+                            </div>
+<pre class="code-block">{
+  <span class="key">"policy"</span>: <span class="string">"all-rejections"</span>
+}</pre>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- GET/PUT /api/v1/config/enrichment-policies -->
+                <article class="endpoint" id="get-put-config-enrichment-policies">
+                    <div class="endpoint-header">
+                        <span class="method method-get">GET</span>
+                        <span class="method method-put">PUT</span>
+                        <h3>/api/v1/config/enrichment-policies</h3>
+                    </div>
+                    <div class="endpoint-body">
+                        <p class="endpoint-description">Get or change enrichment policies that control how environment metadata merges with document content.</p>
+                        <div class="endpoint-section">
+                            <h4>PUT Request Body</h4>
+                            <table class="params-table">
+                                <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+                                <tbody>
+                                    <tr><td><span class="param-name">precedence</span></td><td><span class="param-type">string</span></td><td><span class="param-required">Yes</span></td><td><code>"environment-over-content"</code> | <code>"content-over-environment"</code></td></tr>
+                                    <tr><td><span class="param-name">conflictResolution</span></td><td><span class="param-type">string</span></td><td><span class="param-required">Yes</span></td><td><code>"accept-and-warn"</code> | <code>"discard-and-error"</code></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="endpoint-section">
+                            <h4>Response</h4>
+                            <div class="response-codes">
+                                <span class="response-code success"><span class="code">200</span> OK</span>
+                                <span class="response-code error"><span class="code">400</span> Bad Request</span>
+                            </div>
+<pre class="code-block">{
+  <span class="key">"precedence"</span>: <span class="string">"environment-over-content"</span>,
+  <span class="key">"conflictResolution"</span>: <span class="string">"accept-and-warn"</span>
+}</pre>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- GET/PUT /api/v1/config/ttl/instance -->
+                <article class="endpoint" id="get-put-config-ttl-instance">
+                    <div class="endpoint-header">
+                        <span class="method method-get">GET</span>
+                        <span class="method method-put">PUT</span>
+                        <h3>/api/v1/config/ttl/instance</h3>
+                    </div>
+                    <div class="endpoint-body">
+                        <p class="endpoint-description">Get or set the instance-level TTL (time-to-live) for documents.</p>
+                        <div class="endpoint-section">
+                            <h4>PUT Request Body</h4>
+<pre class="code-block">{
+  <span class="key">"ttl"</span>: <span class="number">3600</span>  <span class="comment">// number (seconds) or "infinite"</span>
+}</pre>
+                            <p>Value <code>0</code> = transient (immediate expiry). <code>"infinite"</code> = no expiry.</p>
+                        </div>
+                        <div class="endpoint-section">
+                            <h4>Response</h4>
+                            <div class="response-codes">
+                                <span class="response-code success"><span class="code">200</span> OK</span>
+                                <span class="response-code error"><span class="code">400</span> Bad Request</span>
+                            </div>
+<pre class="code-block">{
+  <span class="key">"ttl"</span>: <span class="number">7200</span>
+}</pre>
+                        </div>
+                        <div class="endpoint-section">
+                            <div class="notes"><strong>Note:</strong> Applies to documents without a more specific (Document_Type or per-document) TTL.</div>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- PUT /api/v1/config/ttl/sweep-interval -->
+                <article class="endpoint" id="put-config-ttl-sweep-interval">
+                    <div class="endpoint-header">
+                        <span class="method method-put">PUT</span>
+                        <h3>/api/v1/config/ttl/sweep-interval</h3>
+                    </div>
+                    <div class="endpoint-body">
+                        <p class="endpoint-description">Set how frequently TamaDB checks for expired documents.</p>
+                        <div class="endpoint-section">
+                            <h4>Request Body</h4>
+<pre class="code-block">{
+  <span class="key">"interval"</span>: <span class="number">30000</span>  <span class="comment">// milliseconds</span>
+}</pre>
+                        </div>
+                        <div class="endpoint-section">
+                            <h4>Response</h4>
+                            <div class="response-codes">
+                                <span class="response-code success"><span class="code">200</span> OK</span>
+                                <span class="response-code error"><span class="code">400</span> Bad Request</span>
+                            </div>
+<pre class="code-block">{
+  <span class="key">"interval"</span>: <span class="number">30000</span>
+}</pre>
+                        </div>
+                        <div class="endpoint-section">
+                            <div class="notes"><strong>Note:</strong> Controls how frequently TamaDB checks for expired documents. Value is in milliseconds.</div>
+                        </div>
+                    </div>
+                </article>
+
+            </div>
+        </main>
+    </div>
+    <footer class="site-footer">
+        <p>© 2026 Teneris. All rights reserved. Licensed under <a href="https://www.apache.org/licenses/LICENSE-2.0" target="_blank" rel="noopener">Apache License 2.0</a>.</p>
+    </footer>
+</body>
+</html>

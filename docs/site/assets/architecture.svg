@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 320" font-family="Consolas, 'Courier New', monospace" font-size="13">
+  <!-- Background -->
+  <rect width="820" height="320" fill="none"/>
+
+  <!-- Producers box -->
+  <rect x="20" y="60" width="160" height="100" rx="4" fill="#f8f9fa" stroke="#5F6B7A" stroke-width="1.5"/>
+  <text x="100" y="95" text-anchor="middle" font-weight="bold" fill="#161D26">Producers</text>
+  <text x="100" y="115" text-anchor="middle" fill="#5F6B7A" font-size="11">(sensors, services,</text>
+  <text x="100" y="130" text-anchor="middle" fill="#5F6B7A" font-size="11">IoT, applications)</text>
+
+  <!-- Transmission Layer boundary -->
+  <rect x="240" y="20" width="340" height="280" rx="6" fill="none" stroke="#006CE0" stroke-width="1.5" stroke-dasharray="6,3"/>
+  <text x="410" y="42" text-anchor="middle" font-size="11" fill="#006CE0" font-weight="bold">TRANSMISSION LAYER</text>
+
+  <!-- TamaDB box -->
+  <rect x="270" y="70" width="140" height="80" rx="4" fill="#e3f2fd" stroke="#006CE0" stroke-width="1.5"/>
+  <text x="340" y="100" text-anchor="middle" font-weight="bold" fill="#161D26">TamaDB</text>
+  <text x="340" y="118" text-anchor="middle" fill="#5F6B7A" font-size="11">(cache + delivery)</text>
+  <text x="340" y="136" text-anchor="middle" fill="#5F6B7A" font-size="11">entry point</text>
+
+  <!-- PamaDB box -->
+  <rect x="270" y="190" width="140" height="80" rx="4" fill="#f0fdf4" stroke="#0EA5A4" stroke-width="1.5"/>
+  <text x="340" y="220" text-anchor="middle" font-weight="bold" fill="#161D26">PamaDB</text>
+  <text x="340" y="238" text-anchor="middle" fill="#5F6B7A" font-size="11">(transforms,</text>
+  <text x="340" y="253" text-anchor="middle" fill="#5F6B7A" font-size="11">publishing)</text>
+  <text x="340" y="268" text-anchor="middle" fill="#888" font-size="10" font-style="italic">future</text>
+
+  <!-- Consumers box -->
+  <rect x="640" y="60" width="160" height="100" rx="4" fill="#f8f9fa" stroke="#5F6B7A" stroke-width="1.5"/>
+  <text x="720" y="95" text-anchor="middle" font-weight="bold" fill="#161D26">Consumers</text>
+  <text x="720" y="115" text-anchor="middle" fill="#5F6B7A" font-size="11">(dashboards,</text>
+  <text x="720" y="130" text-anchor="middle" fill="#5F6B7A" font-size="11">analytics, services)</text>
+
+  <!-- Arrow: Producers → TamaDB -->
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#5F6B7A"/>
+    </marker>
+    <marker id="arrow-blue" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#006CE0"/>
+    </marker>
+    <marker id="arrow-teal" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#0EA5A4"/>
+    </marker>
+  </defs>
+
+  <!-- Producers → TamaDB -->
+  <line x1="180" y1="110" x2="268" y2="110" stroke="#5F6B7A" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="224" y="100" text-anchor="middle" fill="#5F6B7A" font-size="10">POST ingest</text>
+
+  <!-- TamaDB → PamaDB -->
+  <line x1="340" y1="150" x2="340" y2="188" stroke="#0EA5A4" stroke-width="1.5" marker-end="url(#arrow-teal)"/>
+
+  <!-- TamaDB → Consumers (direct delivery) -->
+  <line x1="410" y1="110" x2="638" y2="110" stroke="#006CE0" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
+  <text x="495" y="100" text-anchor="middle" fill="#006CE0" font-size="10">webhook delivery</text>
+
+  <!-- PamaDB → Consumers -->
+  <path d="M410,230 L560,230 L560,140 L638,140" fill="none" stroke="#0EA5A4" stroke-width="1.5" marker-end="url(#arrow-teal)"/>
+  <text x="485" y="220" text-anchor="middle" fill="#0EA5A4" font-size="10">transformed delivery</text>
+
+  <!-- Legend -->
+  <text x="410" y="310" text-anchor="middle" fill="#888" font-size="10">Consumers receive from either TamaDB or PamaDB · Delivery criteria defined by producer or consumer</text>
+</svg>

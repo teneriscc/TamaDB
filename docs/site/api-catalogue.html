@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TamaDB API Catalogue</title>
+    <meta name="author" content="Teneris">
+    <meta name="copyright" content="© 2026 Teneris. All rights reserved. Licensed under Apache 2.0.">
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+    <link rel="manifest" href="site.webmanifest">
+</head>
+<body>
+    <div class="layout">
+        <nav class="sidebar" aria-label="API Catalogue navigation">
+            <div class="sidebar-brand"><a href="index.html" style="color:inherit;text-decoration:none"><strong>T E N E R i S</strong></a></div>
+            <ul class="nav-tree" role="tree">
+                <li class="nav-group" role="treeitem" aria-expanded="true">
+                    <span class="nav-group-label">API Catalogue</span>
+                    <ul role="group">
+                        <li role="treeitem"><a href="api-catalogue.html" class="nav-link active" aria-current="page">Overview</a></li>
+                        <li role="treeitem"><a href="api-reference.html" class="nav-link">API Reference (Redoc)</a></li>
+                        <li role="treeitem"><a href="api/schemas.html" class="nav-link">Schemas</a></li>
+                        <li role="treeitem"><a href="api/document-types.html" class="nav-link">Document_Types</a></li>
+                        <li role="treeitem"><a href="api/channels.html" class="nav-link">Channels</a></li>
+                        <li role="treeitem"><a href="api/ingestion.html" class="nav-link">Ingestion</a></li>
+                        <li role="treeitem"><a href="api/documents.html" class="nav-link">Documents</a></li>
+                        <li role="treeitem"><a href="api/subscriptions.html" class="nav-link">Subscriptions</a></li>
+                        <li role="treeitem"><a href="api/quarantine.html" class="nav-link">Quarantine</a></li>
+                        <li role="treeitem"><a href="api/configuration.html" class="nav-link">Configuration</a></li>
+                        <li role="treeitem"><a href="api/health.html" class="nav-link">Health</a></li>
+                    </ul>
+                </li>
+                <li role="treeitem">
+                    <a href="index.html" class="nav-link">&larr; Back to Site</a>
+                </li>
+            </ul>
+        </nav>
+        <main class="content" role="main">
+            <div class="page">
+                <header class="api-header">
+                    <h1>TamaDB API Catalogue</h1>
+                    <p>Complete REST API reference for TamaDB Increment 1 — all endpoints grouped by domain.</p>
+                    <p><strong>New:</strong> the <a href="api-reference.html">API Reference (Redoc)</a> is now generated from a single OpenAPI source of truth (<code>openapi.yaml</code>, linted in CI). It is the authoritative, always-current contract; the category pages below remain for narrative context.</p>
+                </header>
+
+                <div class="overview-grid">
+                    <div class="overview-item">
+                        <label>Base URL</label>
+                        <span>http://localhost:3000</span>
+                    </div>
+                    <div class="overview-item">
+                        <label>API Prefix</label>
+                        <span>/api/v1</span>
+                    </div>
+                    <div class="overview-item">
+                        <label>Content-Type</label>
+                        <span>application/json</span>
+                    </div>
+                    <div class="overview-item">
+                        <label>Authentication</label>
+                        <span>None (Increment 1)</span>
+                    </div>
+                    <div class="overview-item">
+                        <label>Version</label>
+                        <span>0.5.0</span>
+                    </div>
+                    <div class="overview-item">
+                        <label>Document Model</label>
+                        <span>DCM (closed)</span>
+                    </div>
+                </div>
+
+                <h2>Endpoints by Category</h2>
+                <ul class="toc-list">
+                    <li><a href="api/schemas.html">Schemas (6 endpoints)</a></li>
+                    <li><a href="api/document-types.html">Document_Types (5 endpoints)</a></li>
+                    <li><a href="api/channels.html">Channels (9 endpoints)</a></li>
+                    <li><a href="api/ingestion.html">Ingestion (2 endpoints)</a></li>
+                    <li><a href="api/documents.html">Documents (6 endpoints)</a></li>
+                    <li><a href="api/subscriptions.html">Subscriptions (4 endpoints)</a></li>
+                    <li><a href="api/quarantine.html">Quarantine (2 endpoints)</a></li>
+                    <li><a href="api/configuration.html">Configuration (15 endpoints)</a></li>
+                    <li><a href="api/health.html">Health &amp; Admin (2 endpoints)</a></li>
+                </ul>
+
+                <h2>Conventions</h2>
+                <ul>
+                    <li>All endpoints return JSON. Request bodies (where applicable) must be <code>Content-Type: application/json</code>.</li>
+                    <li>Path parameters are shown as <code>{paramName}</code>.</li>
+                    <li>The health endpoint is the only one <strong>not</strong> under the <code>/api/v1</code> prefix.</li>
+                    <li>Composed D-Ids (multi-field identity) use <code>:</code> as delimiter in URLs.</li>
+                    <li>TamaDB uses upsert semantics — there is no separate create vs update for documents.</li>
+                </ul>
+
+                <h2>Error Response Shape</h2>
+                <p>All error responses follow a consistent structure:</p>
+<pre class="code-block">{
+  <span class="key">"code"</span>: <span class="string">"ERROR_CODE"</span>,
+  <span class="key">"message"</span>: <span class="string">"Human-readable description"</span>,
+  <span class="key">"quarantineRef"</span>: <span class="string">"qr-xxx-nnnn"</span>  <span class="null">// only if quarantined</span>
+}</pre>
+
+                <h2>Common Error Codes</h2>
+                <table>
+                    <thead>
+                        <tr><th>Code</th><th>HTTP</th><th>Meaning</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><code>PARSE_ERROR</code></td><td>400</td><td>Payload is not valid JSON</td></tr>
+                        <tr><td><code>SCHEMA_VALIDATION_FAILED</code></td><td>422</td><td>Document doesn't match schema</td></tr>
+                        <tr><td><code>DOCUMENT_TYPE_NOT_FOUND</code></td><td>404</td><td>No such Document_Type registered</td></tr>
+                        <tr><td><code>CHANNEL_NOT_FOUND</code></td><td>404</td><td>Channel doesn't exist</td></tr>
+                        <tr><td><code>CHANNEL_INACTIVE</code></td><td>403</td><td>Channel suspended by operator</td></tr>
+                        <tr><td><code>CHANNEL_BLOCKED</code></td><td>403</td><td>Channel blocked due to schema conflict</td></tr>
+                        <tr><td><code>VERSION_CONFLICT</code></td><td>409</td><td>Optimistic concurrency mismatch</td></tr>
+                        <tr><td><code>ENRICHMENT_CONFLICT</code></td><td>409</td><td>Payload conflicts with enrichment bindings</td></tr>
+                        <tr><td><code>DOCUMENT_NOT_FOUND</code></td><td>404</td><td>Document doesn't exist or is soft-deleted</td></tr>
+                    </tbody>
+                </table>
+
+                <p><em>Document version: 1.0 — August 2026. Corresponds to: TamaDB Increment 1</em></p>
+            </div>
+        </main>
+    </div>
+    <footer class="site-footer">
+        <p>© 2026 Teneris. All rights reserved. Licensed under <a href="https://www.apache.org/licenses/LICENSE-2.0" target="_blank" rel="noopener">Apache License 2.0</a>.</p>
+    </footer>
+</body>
+</html>

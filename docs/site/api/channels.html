@@ -1,0 +1,356 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Channels — TamaDB API Catalogue</title>
+    <meta name="author" content="Teneris">
+    <link rel="stylesheet" href="../style.css">
+    <link rel="icon" type="image/x-icon" href="../favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="../favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="../favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png">
+    <link rel="manifest" href="../site.webmanifest">
+</head>
+<body>
+    <div class="layout">
+        <nav class="sidebar" aria-label="API Catalogue navigation">
+            <div class="sidebar-brand"><a href="../index.html" style="color:inherit;text-decoration:none"><strong>T E N E R i S</strong></a></div>
+            <ul class="nav-tree" role="tree">
+                <li class="nav-group" role="treeitem" aria-expanded="true">
+                    <span class="nav-group-label">API Catalogue</span>
+                    <ul role="group">
+                        <li role="treeitem"><a href="../api-catalogue.html" class="nav-link">Overview</a></li>
+                        <li role="treeitem"><a href="../api-reference.html" class="nav-link">API Reference (Redoc)</a></li>
+                        <li role="treeitem"><a href="schemas.html" class="nav-link">Schemas</a></li>
+                        <li role="treeitem"><a href="document-types.html" class="nav-link">Document_Types</a></li>
+                        <li role="treeitem"><a href="channels.html" class="nav-link active" aria-current="page">Channels</a></li>
+                        <li role="treeitem"><a href="ingestion.html" class="nav-link">Ingestion</a></li>
+                        <li role="treeitem"><a href="documents.html" class="nav-link">Documents</a></li>
+                        <li role="treeitem"><a href="subscriptions.html" class="nav-link">Subscriptions</a></li>
+                        <li role="treeitem"><a href="quarantine.html" class="nav-link">Quarantine</a></li>
+                        <li role="treeitem"><a href="configuration.html" class="nav-link">Configuration</a></li>
+                        <li role="treeitem"><a href="health.html" class="nav-link">Health</a></li>
+                    </ul>
+                </li>
+                <li role="treeitem">
+                    <a href="../index.html" class="nav-link">&larr; Back to Site</a>
+                </li>
+            </ul>
+        </nav>
+        <main class="content" role="main">
+            <div class="page">
+                <h1>Channels</h1>
+                <p>Channel registration and management. Channels give producers their own ingestion endpoint, optionally with enrichment bindings and a Channel_Schema.</p>
+
+                <section class="category">
+                    <h2 class="category-header">Quick Reference</h2>
+                    <div class="quick-ref">
+                        <table>
+                            <thead>
+                                <tr><th>Method</th><th>Path</th><th>Summary</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><span class="method method-post">POST</span></td>
+                                    <td class="path">/api/v1/config/channels</td>
+                                    <td>Register a channel</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="method method-get">GET</span></td>
+                                    <td class="path">/api/v1/config/channels?documentType={documentType}</td>
+                                    <td>List channels</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="method method-put">PUT</span></td>
+                                    <td class="path">/api/v1/config/channels/{channelId}</td>
+                                    <td>Update channel configuration</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="method method-delete">DELETE</span></td>
+                                    <td class="path">/api/v1/config/channels/{channelId}</td>
+                                    <td>Delete a channel</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="method method-post">POST</span></td>
+                                    <td class="path">/api/v1/config/channels/{channelId}/activate</td>
+                                    <td>Activate a channel</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="method method-post">POST</span></td>
+                                    <td class="path">/api/v1/config/channels/{channelId}/deactivate</td>
+                                    <td>Deactivate a channel</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="method method-put">PUT</span></td>
+                                    <td class="path">/api/v1/config/channels/{channelId}/enrichment</td>
+                                    <td>Set enrichment bindings</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="method method-get">GET</span></td>
+                                    <td class="path">/api/v1/config/channels/{channelId}/enrichment</td>
+                                    <td>Get enrichment bindings</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="method method-delete">DELETE</span></td>
+                                    <td class="path">/api/v1/config/channels/{channelId}/enrichment</td>
+                                    <td>Remove enrichment bindings</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- POST /api/v1/config/channels -->
+                <article class="endpoint" id="post-channels">
+                    <div class="endpoint-header">
+                        <span class="method method-post">POST</span>
+                        <h3>/api/v1/config/channels</h3>
+                    </div>
+                    <div class="endpoint-body">
+                        <p class="endpoint-description">Register a new channel for a Document_Type. Channels provide per-producer ingestion endpoints.</p>
+                        <div class="endpoint-section">
+                            <h4>Request Body</h4>
+                            <table class="params-table">
+                                <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+                                <tbody>
+                                    <tr><td><span class="param-name">channelId</span></td><td><span class="param-type">string</span></td><td><span class="param-required">Yes</span></td><td>Unique channel identifier</td></tr>
+                                    <tr><td><span class="param-name">documentType</span></td><td><span class="param-type">string</span></td><td><span class="param-required">Yes</span></td><td>Document_Type this channel belongs to</td></tr>
+                                    <tr><td><span class="param-name">channelSchema</span></td><td><span class="param-type">string</span></td><td><span class="param-required">No</span></td><td>Optional schema reference for channel-specific validation</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="endpoint-section">
+                            <h4>Response</h4>
+                            <div class="response-codes">
+                                <span class="response-code success"><span class="code">201</span> Created</span>
+                                <span class="response-code error"><span class="code">400</span> Bad Request</span>
+                                <span class="response-code error"><span class="code">404</span> Document_Type not found</span>
+                            </div>
+<pre class="code-block">{
+  <span class="key">"channelId"</span>: <span class="string">"garage-sensor"</span>,
+  <span class="key">"documentType"</span>: <span class="string">"temperature-readings"</span>,
+  <span class="key">"status"</span>: <span class="string">"active"</span>
+}</pre>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- GET /api/v1/config/channels -->
+                <article class="endpoint" id="get-channels">
+                    <div class="endpoint-header">
+                        <span class="method method-get">GET</span>
+                        <h3>/api/v1/config/channels?documentType={documentType}</h3>
+                    </div>
+                    <div class="endpoint-body">
+                        <p class="endpoint-description">List all channels, optionally filtered by Document_Type.</p>
+                        <div class="endpoint-section">
+                            <h4>Response</h4>
+                            <div class="response-codes">
+                                <span class="response-code success"><span class="code">200</span> OK</span>
+                            </div>
+<pre class="code-block">[
+  { ...channel object },
+  { ...channel object }
+]</pre>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- PUT /api/v1/config/channels/{channelId} -->
+                <article class="endpoint" id="put-channels">
+                    <div class="endpoint-header">
+                        <span class="method method-put">PUT</span>
+                        <h3>/api/v1/config/channels/{channelId}</h3>
+                    </div>
+                    <div class="endpoint-body">
+                        <p class="endpoint-description">Update the configuration of an existing channel.</p>
+                        <div class="endpoint-section">
+                            <h4>Request Body</h4>
+                            <table class="params-table">
+                                <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+                                <tbody>
+                                    <tr><td><span class="param-name">channelSchema</span></td><td><span class="param-type">string</span></td><td><span class="param-required">No</span></td><td>Updated schema reference for channel validation</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="endpoint-section">
+                            <h4>Response</h4>
+                            <div class="response-codes">
+                                <span class="response-code success"><span class="code">200</span> OK</span>
+                                <span class="response-code error"><span class="code">404</span> Not Found</span>
+                            </div>
+<pre class="code-block">{
+  <span class="key">"channelId"</span>: <span class="string">"garage-sensor"</span>,
+  <span class="key">"documentType"</span>: <span class="string">"temperature-readings"</span>,
+  <span class="key">"channelSchema"</span>: <span class="string">"schema-ref"</span>,
+  <span class="key">"status"</span>: <span class="string">"active"</span>
+}</pre>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- DELETE /api/v1/config/channels/{channelId} -->
+                <article class="endpoint" id="delete-channels">
+                    <div class="endpoint-header">
+                        <span class="method method-delete">DELETE</span>
+                        <h3>/api/v1/config/channels/{channelId}</h3>
+                    </div>
+                    <div class="endpoint-body">
+                        <p class="endpoint-description">Delete a channel registration.</p>
+                        <div class="endpoint-section">
+                            <h4>Response</h4>
+                            <div class="response-codes">
+                                <span class="response-code success"><span class="code">200</span> OK</span>
+                                <span class="response-code error"><span class="code">404</span> Not Found</span>
+                            </div>
+<pre class="code-block">{
+  <span class="key">"deleted"</span>: <span class="boolean">true</span>
+}</pre>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- POST /api/v1/config/channels/{channelId}/activate -->
+                <article class="endpoint" id="post-channels-activate">
+                    <div class="endpoint-header">
+                        <span class="method method-post">POST</span>
+                        <h3>/api/v1/config/channels/{channelId}/activate</h3>
+                    </div>
+                    <div class="endpoint-body">
+                        <p class="endpoint-description">Activate a channel, enabling ingestion via this endpoint.</p>
+                        <div class="endpoint-section">
+                            <h4>Response</h4>
+                            <div class="response-codes">
+                                <span class="response-code success"><span class="code">200</span> OK</span>
+                                <span class="response-code error"><span class="code">404</span> Not Found</span>
+                                <span class="response-code error"><span class="code">409</span> Conflict (blocked)</span>
+                            </div>
+<pre class="code-block">{
+  <span class="key">"channelId"</span>: <span class="string">"garage-sensor"</span>,
+  <span class="key">"status"</span>: <span class="string">"active"</span>
+}</pre>
+                        </div>
+                        <div class="endpoint-section">
+                            <div class="notes"><strong>Note:</strong> Cannot activate a blocked channel. Fix the schema conflict first before reactivating.</div>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- POST /api/v1/config/channels/{channelId}/deactivate -->
+                <article class="endpoint" id="post-channels-deactivate">
+                    <div class="endpoint-header">
+                        <span class="method method-post">POST</span>
+                        <h3>/api/v1/config/channels/{channelId}/deactivate</h3>
+                    </div>
+                    <div class="endpoint-body">
+                        <p class="endpoint-description">Deactivate a channel. Operator-controlled suspension of ingestion.</p>
+                        <div class="endpoint-section">
+                            <h4>Response</h4>
+                            <div class="response-codes">
+                                <span class="response-code success"><span class="code">200</span> OK</span>
+                                <span class="response-code error"><span class="code">404</span> Not Found</span>
+                            </div>
+<pre class="code-block">{
+  <span class="key">"channelId"</span>: <span class="string">"garage-sensor"</span>,
+  <span class="key">"status"</span>: <span class="string">"inactive"</span>
+}</pre>
+                        </div>
+                        <div class="endpoint-section">
+                            <div class="notes"><strong>Note:</strong> Ingestion attempts return <code>403 Forbidden</code> while the channel is inactive.</div>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- PUT /api/v1/config/channels/{channelId}/enrichment -->
+                <article class="endpoint" id="put-channels-enrichment">
+                    <div class="endpoint-header">
+                        <span class="method method-put">PUT</span>
+                        <h3>/api/v1/config/channels/{channelId}/enrichment</h3>
+                    </div>
+                    <div class="endpoint-body">
+                        <p class="endpoint-description">Set enrichment bindings for a channel. Bindings inject fields into every payload before validation.</p>
+                        <div class="endpoint-section">
+                            <h4>Request Body</h4>
+                            <table class="params-table">
+                                <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+                                <tbody>
+                                    <tr><td><span class="param-name">bindings</span></td><td><span class="param-type">array</span></td><td><span class="param-required">Yes</span></td><td>Array of enrichment binding objects</td></tr>
+                                    <tr><td><span class="param-name">bindings[].fieldPath</span></td><td><span class="param-type">string</span></td><td><span class="param-required">Yes</span></td><td>Dot-notation path to inject value at</td></tr>
+                                    <tr><td><span class="param-name">bindings[].staticValue</span></td><td><span class="param-type">any</span></td><td><span class="param-required">Yes</span></td><td>Value to inject</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="endpoint-section">
+                            <h4>Response</h4>
+                            <div class="response-codes">
+                                <span class="response-code success"><span class="code">200</span> OK</span>
+                                <span class="response-code error"><span class="code">404</span> Not Found</span>
+                            </div>
+<pre class="code-block">{
+  <span class="key">"channelId"</span>: <span class="string">"garage-sensor"</span>,
+  <span class="key">"bindings"</span>: [
+    { <span class="key">"fieldPath"</span>: <span class="string">"location"</span>, <span class="key">"staticValue"</span>: <span class="string">"Garage"</span> }
+  ]
+}</pre>
+                        </div>
+                        <div class="endpoint-section">
+                            <div class="notes"><strong>Note:</strong> TamaDB injects these fields into every payload received via this channel before validation. Conflict behaviour is governed by enrichment policies.</div>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- GET /api/v1/config/channels/{channelId}/enrichment -->
+                <article class="endpoint" id="get-channels-enrichment">
+                    <div class="endpoint-header">
+                        <span class="method method-get">GET</span>
+                        <h3>/api/v1/config/channels/{channelId}/enrichment</h3>
+                    </div>
+                    <div class="endpoint-body">
+                        <p class="endpoint-description">Retrieve the current enrichment bindings for a channel.</p>
+                        <div class="endpoint-section">
+                            <h4>Response</h4>
+                            <div class="response-codes">
+                                <span class="response-code success"><span class="code">200</span> OK</span>
+                                <span class="response-code error"><span class="code">404</span> Not Found</span>
+                            </div>
+<pre class="code-block">{
+  <span class="key">"channelId"</span>: <span class="string">"garage-sensor"</span>,
+  <span class="key">"bindings"</span>: [
+    { <span class="key">"fieldPath"</span>: <span class="string">"location"</span>, <span class="key">"staticValue"</span>: <span class="string">"Garage"</span> }
+  ]
+}</pre>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- DELETE /api/v1/config/channels/{channelId}/enrichment -->
+                <article class="endpoint" id="delete-channels-enrichment">
+                    <div class="endpoint-header">
+                        <span class="method method-delete">DELETE</span>
+                        <h3>/api/v1/config/channels/{channelId}/enrichment</h3>
+                    </div>
+                    <div class="endpoint-body">
+                        <p class="endpoint-description">Remove all enrichment bindings from a channel.</p>
+                        <div class="endpoint-section">
+                            <h4>Response</h4>
+                            <div class="response-codes">
+                                <span class="response-code success"><span class="code">200</span> OK</span>
+                                <span class="response-code error"><span class="code">404</span> Not Found</span>
+                            </div>
+<pre class="code-block">{
+  <span class="key">"channelId"</span>: <span class="string">"garage-sensor"</span>,
+  <span class="key">"bindings"</span>: []
+}</pre>
+                        </div>
+                    </div>
+                </article>
+
+            </div>
+        </main>
+    </div>
+    <footer class="site-footer">
+        <p>© 2026 Teneris. All rights reserved. Licensed under <a href="https://www.apache.org/licenses/LICENSE-2.0" target="_blank" rel="noopener">Apache License 2.0</a>.</p>
+    </footer>
+</body>
+</html>
